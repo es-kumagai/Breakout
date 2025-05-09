@@ -12,6 +12,7 @@ struct GameView: View {
             
             // ゲーム要素
             GameContentView()
+            // GameContentView全体にdrawingGroupを適用して最適化
                 .drawingGroup() // パフォーマンス向上のためのGPUレンダリング
         }
         .frame(width: CGFloat(GameState.frameWidth), height: CGFloat(GameState.frameHeight))
@@ -73,7 +74,7 @@ struct GameView: View {
         }
         .focusable()
         // キーボードショートカットの強化
-        .onKeyPress(.space) { 
+        .onKeyPress(.space) {
             if gameState.isGameFrozen && !gameState.isGameOver { return .ignored }
             
             if gameState.isGameOver {
@@ -125,8 +126,6 @@ struct GameContentView: View {
             // ブロック - IDを明示的に指定して再利用性向上
             ForEach(gameState.blocks, id: \.id) { block in
                 BlockView(block: block)
-                    // 効率的なキャッシュヒント - アニメーション中のみキャッシュを無効化
-//                    .cacheHint(block.isAnimating ? .transient : .automatic)
             }
             
             // パドル - 常に動くのでキャッシュは不要
@@ -136,7 +135,6 @@ struct GameContentView: View {
             ForEach(0..<gameState.lasers.count, id: \.self) { index in
                 LaserView(laser: gameState.lasers[index])
             }
-            .drawingGroup() // レーザーエフェクトをGPUで処理
             
             // ボール - 複数ボールをまとめてGPU処理
             ZStack {
@@ -144,38 +142,33 @@ struct GameContentView: View {
                     BallView(ball: gameState.balls[index])
                 }
             }
-            .drawingGroup() // ボールと残像をまとめてGPU処理
             
             // ゲーム情報表示
             VStack {
                 // ゲーム情報と各種UI
                 GameInfoView()
-//                    .cacheHint(.automatic) // 静的なコンテンツはキャッシュ
                 
                 Spacer()
             }
             .zIndex(50)
-
+            
             // エフェクト類は条件付きレンダリング
             Group {
                 // 画面フラッシュエフェクト - 最前面に表示
                 if gameState.showScreenFlash {
                     ScreenFlashView()
-                        .drawingGroup()
                         .zIndex(100)
                 }
                 
                 // スターコンボエフェクト
                 if gameState.showStarComboEffect {
                     StarComboEffectView()
-                        .drawingGroup()
                         .zIndex(90)
                 }
                 
                 // パドル衝突エフェクト
                 if gameState.showPaddleHitEffect {
                     PaddleHitEffectView()
-                        .drawingGroup()
                         .zIndex(80)
                 }
                 
@@ -215,8 +208,7 @@ struct GameContentView: View {
                 }
             }
         }
-        // 全体をGPUレンダリング
-        .drawingGroup()
+        // GameContentView全体としてのdrawingGroupは削除 - 親要素で既に適用
     }
 }
 
@@ -269,7 +261,7 @@ struct BlockReplenishCountdownView: View {
                 Text("\(Int(gameState.timeUntilNextBlocks) + 1)秒")
                     .foregroundColor(.yellow)
                     .font(.system(size: 18, weight: .bold))
-                    // カウントダウンの最後3秒間は点滅
+                // カウントダウンの最後3秒間は点滅
                     .opacity(gameState.timeUntilNextBlocks <= 3.0 ? (Int(gameState.timeUntilNextBlocks * 2) % 2 == 0 ? 1.0 : 0.4) : 1.0)
             }
             .padding(8)
@@ -295,7 +287,7 @@ struct BallReviveCountdownsView: View {
         ForEach(0..<gameState.balls.count, id: \.self) { index in
             if let countdown = gameState.balls[index].reviveCountdown, Int(countdown) >= 0 {
                 BallReviveCountdownView(ballIndex: index, countdown: countdown)
-                    // 常に一意のIDを持たせることで強制的に再描画
+                // 常に一意のIDを持たせることで強制的に再描画
                     .id("ball-countdown-\(index)-\(countdown)")
             }
         }
@@ -313,7 +305,7 @@ struct BallReviveCountdownView: View {
     let countdown: Double // Double型に戻す
     
     // 現在の秒数（整数部分）
-    private var countdownSeconds: Int { 
+    private var countdownSeconds: Int {
         return Int(countdown)
     }
     
@@ -328,7 +320,7 @@ struct BallReviveCountdownView: View {
                 Text("\(countdownSeconds)秒")
                     .foregroundColor(.cyan)
                     .font(.system(size: 18, weight: .bold))
-                    // 残り5秒間は点滅
+                // 残り5秒間は点滅
                     .opacity(countdownSeconds <= 5 ? (countdownSeconds % 2 == 0 ? 1.0 : 0.4) : 1.0)
                 
                 // ボールの形状アイコン
@@ -457,7 +449,7 @@ struct BallView: View {
             // 残像（パフォーマンス向上のため最大5つに制限）
             ForEach(max(0, ball.positionHistory.count - 5)..<ball.positionHistory.count, id: \.self) { i in
                 trailShape(index: i)
-                    // ブレンドモードはdrawingGroupで効率化するため個別設定せず、親で一括して適用
+                // ブレンドモードはdrawingGroupで効率化するため個別設定せず、親で一括して適用
             }
             
             // ボール本体
@@ -478,7 +470,7 @@ struct BallView: View {
                     .fill(ball.color)
                     .frame(width: ball.radius * 3, height: ball.radius * 3)
                     .rotationEffect(ball.rotation)
-                    
+                
             case .circle:
                 // 円型 - シンプルな形状
                 Circle()
@@ -717,7 +709,7 @@ struct BlockView: View {
                             .zIndex(12)
                     }
                     
-                    // 中間の発光レイヤー - パフォーマンス向上のためdrawingGroup()を使用
+                    // 中間の発光レイヤー - 内部のdrawingGroup()を削除
                     RoundedRectangle(cornerRadius: 5)
                         .fill(brightRainbowGradient)
                         .frame(width: block.size.width * 1.4, height: block.size.height * 1.4)
@@ -726,7 +718,6 @@ struct BlockView: View {
                         .opacity(opacity * 0.9)
                         .scaleEffect(scaleEffect + 0.1)
                         .zIndex(11)
-                        .drawingGroup() // GPU描画の活用
                     
                     // 虹色の輝くエフェクト（メイン）
                     RoundedRectangle(cornerRadius: 4)
@@ -740,7 +731,6 @@ struct BlockView: View {
                         .animation(.easeInOut(duration: 0.7), value: scaleEffect)
                         .animation(.easeInOut(duration: 0.7), value: opacity)
                         .zIndex(10) // 虹色エフェクトを最前面に
-                        .drawingGroup() // GPU描画の活用
                 }
                 .onAppear {
                     // 元のブロックをすぐに非表示 - 高速化のため遅延を減少
@@ -777,8 +767,6 @@ struct BlockView: View {
                     .zIndex(1) // 元のブロックは背面に
             }
         }
-        // パフォーマンス最適化
-//        .cacheHint(block.isAnimating ? .transient : .automatic)
     }
     
     // 虹色のグラデーション - 最適化して処理を軽量化
@@ -797,8 +785,8 @@ struct BlockView: View {
     var brightRainbowGradient: AngularGradient {
         AngularGradient(
             gradient: Gradient(colors: [
-                Color.red.opacity(1.5), Color.yellow.opacity(1.8), 
-                Color.green.opacity(1.6), Color.blue.opacity(1.6), 
+                Color.red.opacity(1.5), Color.yellow.opacity(1.8),
+                Color.green.opacity(1.6), Color.blue.opacity(1.6),
                 Color.purple.opacity(1.6), Color.red.opacity(1.5)
             ]),
             center: .center,
@@ -900,7 +888,7 @@ struct LaserView: View {
                     width: laser.size.width * sizeMultiplier,
                     height: laser.size.height * sizeMultiplier
                 )
-                
+            
             // 残像の発光効果
             Rectangle()
                 .fill(
@@ -966,7 +954,7 @@ struct PaddleHitEffectView: View {
                         endPoint: .trailing
                     )
                 )
-                .frame(width: gameState.paddle.size.width * (1 + animationProgress * 0.3), 
+                .frame(width: gameState.paddle.size.width * (1 + animationProgress * 0.3),
                        height: gameState.paddle.size.height * (1 + animationProgress * 0.5))
                 .position(gameState.paddle.position)
                 .opacity(1 - animationProgress * 0.8)
@@ -1152,7 +1140,6 @@ struct AllBallsLostMessageView: View {
                 .shadow(color: .red.opacity(0.5), radius: 10)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .drawingGroup()
         }
     }
 }
@@ -1204,7 +1191,6 @@ struct LaserHitMessageView: View {
                 .shadow(color: .red.opacity(0.5), radius: 10)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .drawingGroup()
         }
     }
 }
@@ -1212,4 +1198,4 @@ struct LaserHitMessageView: View {
 #Preview {
     GameView()
         .environmentObject(GameState())
-} 
+}

@@ -125,7 +125,7 @@ struct ContentView: View {
                 return .handled
             }
         }
-        // SwiftUIのレンダリングをゲームに最適化
+        // SwiftUIのレンダリングをゲームに最適化 - メインのdrawingGroup()は残す
         .drawingGroup()
     }
     

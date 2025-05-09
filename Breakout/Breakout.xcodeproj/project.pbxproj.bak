@@ -11,14 +11,6 @@
 		1A1A1A1A1A1A1A1A1A1A1A1C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A1A1A1A1A1A1A1A1A1A1A1B /* ContentView.swift */; };
 		1A1A1A1A1A1A1A1A1A1A1A1E /* GameState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A1A1A1A1A1A1A1A1A1A1A1D /* GameState.swift */; };
 		1A1A1A1A1A1A1A1A1A1A1A20 /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A1A1A1A1A1A1A1A1A1A1A1F /* GameView.swift */; };
-		B15C261F2DCDAE7D00E731C9 /* level_up.wav in Resources */ = {isa = PBXBuildFile; fileRef = B15C261A2DCDAE7D00E731C9 /* level_up.wav */; };
-		B15C26202DCDAE7D00E731C9 /* laser.wav in Resources */ = {isa = PBXBuildFile; fileRef = B15C26192DCDAE7D00E731C9 /* laser.wav */; };
-		B15C26212DCDAE7D00E731C9 /* game_over.wav in Resources */ = {isa = PBXBuildFile; fileRef = B15C26182DCDAE7D00E731C9 /* game_over.wav */; };
-		B15C26222DCDAE7D00E731C9 /* paddle_hit.wav in Resources */ = {isa = PBXBuildFile; fileRef = B15C261B2DCDAE7D00E731C9 /* paddle_hit.wav */; };
-		B15C26232DCDAE7D00E731C9 /* combo.wav in Resources */ = {isa = PBXBuildFile; fileRef = B15C26172DCDAE7D00E731C9 /* combo.wav */; };
-		B15C26242DCDAE7D00E731C9 /* ball_launch.wav in Resources */ = {isa = PBXBuildFile; fileRef = B15C26152DCDAE7D00E731C9 /* ball_launch.wav */; };
-		B15C26252DCDAE7D00E731C9 /* block_break.wav in Resources */ = {isa = PBXBuildFile; fileRef = B15C26162DCDAE7D00E731C9 /* block_break.wav */; };
-		B15C26262DCDAE7D00E731C9 /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15C261E2DCDAE7D00E731C9 /* SoundManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,14 +19,6 @@
 		1A1A1A1A1A1A1A1A1A1A1A1B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		1A1A1A1A1A1A1A1A1A1A1A1D /* GameState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameState.swift; sourceTree = "<group>"; };
 		1A1A1A1A1A1A1A1A1A1A1A1F /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
-		B15C26152DCDAE7D00E731C9 /* ball_launch.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = ball_launch.wav; sourceTree = "<group>"; };
-		B15C26162DCDAE7D00E731C9 /* block_break.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = block_break.wav; sourceTree = "<group>"; };
-		B15C26172DCDAE7D00E731C9 /* combo.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = combo.wav; sourceTree = "<group>"; };
-		B15C26182DCDAE7D00E731C9 /* game_over.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = game_over.wav; sourceTree = "<group>"; };
-		B15C26192DCDAE7D00E731C9 /* laser.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = laser.wav; sourceTree = "<group>"; };
-		B15C261A2DCDAE7D00E731C9 /* level_up.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = level_up.wav; sourceTree = "<group>"; };
-		B15C261B2DCDAE7D00E731C9 /* paddle_hit.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = paddle_hit.wav; sourceTree = "<group>"; };
-		B15C261E2DCDAE7D00E731C9 /* SoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -48,7 +32,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		1A1A1A1A1A1A1A1A1A1A1A0F = {
+		1A1A1A1A1A1A1A1A1A1A1A0F /* Breakout */ = {
 			isa = PBXGroup;
 			children = (
 				1A1A1A1A1A1A1A1A1A1A1A17 /* Products */,
@@ -67,36 +51,12 @@
 		1A1A1A1A1A1A1A1A1A1A1A21 /* Breakout */ = {
 			isa = PBXGroup;
 			children = (
-				B15C261D2DCDAE7D00E731C9 /* Resources */,
-				B15C261E2DCDAE7D00E731C9 /* SoundManager.swift */,
 				1A1A1A1A1A1A1A1A1A1A1A19 /* BreakoutApp.swift */,
 				1A1A1A1A1A1A1A1A1A1A1A1B /* ContentView.swift */,
 				1A1A1A1A1A1A1A1A1A1A1A1D /* GameState.swift */,
 				1A1A1A1A1A1A1A1A1A1A1A1F /* GameView.swift */,
 			);
 			path = Breakout;
-			sourceTree = "<group>";
-		};
-		B15C261C2DCDAE7D00E731C9 /* Sounds */ = {
-			isa = PBXGroup;
-			children = (
-				B15C26152DCDAE7D00E731C9 /* ball_launch.wav */,
-				B15C26162DCDAE7D00E731C9 /* block_break.wav */,
-				B15C26172DCDAE7D00E731C9 /* combo.wav */,
-				B15C26182DCDAE7D00E731C9 /* game_over.wav */,
-				B15C26192DCDAE7D00E731C9 /* laser.wav */,
-				B15C261A2DCDAE7D00E731C9 /* level_up.wav */,
-				B15C261B2DCDAE7D00E731C9 /* paddle_hit.wav */,
-			);
-			path = Sounds;
-			sourceTree = "<group>";
-		};
-		B15C261D2DCDAE7D00E731C9 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				B15C261C2DCDAE7D00E731C9 /* Sounds */,
-			);
-			path = Resources;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -127,7 +87,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1530;
-				LastUpgradeCheck = 1630;
+				LastUpgradeCheck = 1530;
 				TargetAttributes = {
 					1A1A1A1A1A1A1A1A1A1A1A16 = {
 						CreatedOnToolsVersion = 15.3;
@@ -157,13 +117,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B15C261F2DCDAE7D00E731C9 /* level_up.wav in Resources */,
-				B15C26202DCDAE7D00E731C9 /* laser.wav in Resources */,
-				B15C26212DCDAE7D00E731C9 /* game_over.wav in Resources */,
-				B15C26222DCDAE7D00E731C9 /* paddle_hit.wav in Resources */,
-				B15C26232DCDAE7D00E731C9 /* combo.wav in Resources */,
-				B15C26242DCDAE7D00E731C9 /* ball_launch.wav in Resources */,
-				B15C26252DCDAE7D00E731C9 /* block_break.wav in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -178,7 +131,6 @@
 				1A1A1A1A1A1A1A1A1A1A1A1E /* GameState.swift in Sources */,
 				1A1A1A1A1A1A1A1A1A1A1A20 /* GameView.swift in Sources */,
 				1A1A1A1A1A1A1A1A1A1A1A1A /* BreakoutApp.swift in Sources */,
-				B15C26262DCDAE7D00E731C9 /* SoundManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -219,7 +171,6 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -283,7 +234,6 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -314,7 +264,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -340,7 +289,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -381,4 +329,4 @@
 /* End XCConfigurationList section */
 	};
 	rootObject = 1A1A1A1A1A1A1A1A1A1A1A10 /* Project object */;
-}
+} 

@@ -12,6 +12,7 @@ struct GameView: View {
             
             // ゲーム要素
             GameContentView()
+                .drawingGroup() // パフォーマンス向上のためのGPUレンダリング
         }
         .frame(width: CGFloat(GameState.frameWidth), height: CGFloat(GameState.frameHeight))
         .background(Color.black)
@@ -43,16 +44,14 @@ struct GameView: View {
                     let location = value.location
                     gameState.movePaddle(to: location.x)
                     
-                    // ゲーム開始または復活ボールを発射
+                    // ゲーム開始またはボール発射
                     if !gameState.isGameStarted {
                         // ゲームが開始されていない場合、開始する
                         gameState.startGame()
                     } else {
                         // 既にゲームが開始されている場合は、停止中ボールをチェックして発射する
-                        for i in 0..<gameState.balls.count {
-                            if !gameState.balls[i].isMoving && gameState.balls[i].reviveCountdown == nil {
-                                gameState.launchBall(at: i)
-                            }
+                        for i in 0..<gameState.balls.count where !gameState.balls[i].isMoving && gameState.balls[i].reviveCountdown == nil {
+                            gameState.launchBall(at: i)
                         }
                     }
                 }
@@ -67,83 +66,143 @@ struct GameView: View {
                 gameState.startGame()
             } else if gameState.isGameStarted && !gameState.isGameOver {
                 // 既にゲームが開始されている場合は、停止中ボールをチェックして発射する
-                for i in 0..<gameState.balls.count {
-                    if !gameState.balls[i].isMoving && gameState.balls[i].reviveCountdown == nil {
-                        gameState.launchBall(at: i)
-                    }
+                for i in 0..<gameState.balls.count where !gameState.balls[i].isMoving && gameState.balls[i].reviveCountdown == nil {
+                    gameState.launchBall(at: i)
                 }
             }
         }
         .focusable()
+        // キーボードショートカットの強化
         .onKeyPress(.space) { 
-            // ゲームフリーズ中は入力を無視
             if gameState.isGameFrozen { return .ignored }
             
-            // スペースキーでの一時停止機能を削除
             if gameState.isGameOver {
-                // スペースキーでのリスタート機能は残す
+                // スペースキーでのリスタート機能
                 gameState.restartGame()
                 return .handled
+            } else if !gameState.isGameStarted {
+                // ゲーム開始
+                gameState.startGame()
+                return .handled
+            } else {
+                // ボール発射
+                for i in 0..<gameState.balls.count where !gameState.balls[i].isMoving && gameState.balls[i].reviveCountdown == nil {
+                    gameState.launchBall(at: i)
+                }
+                return .handled
             }
-            return .ignored
         }
+        // 左右矢印キーでパドル移動
+        .onKeyPress(keys: [.leftArrow, .rightArrow]) { press in
+            if gameState.isGameFrozen { return .ignored }
+            
+            let moveAmount: CGFloat = 20.0
+            if press.key == .leftArrow {
+                let newPosition = max(gameState.paddle.position.x - moveAmount, gameState.paddle.size.width / 2)
+                gameState.movePaddle(to: newPosition)
+            } else {
+                let newPosition = min(gameState.paddle.position.x + moveAmount, GameState.frameWidth - gameState.paddle.size.width / 2)
+                gameState.movePaddle(to: newPosition)
+            }
+            return .handled
+        }
+        // アクセシビリティ改善
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("ブレイクアウトゲーム")
+        .accessibilityHint("スペースキーでゲーム開始、左右の矢印キーでパドルを移動")
     }
 }
 
-// ゲーム要素をまとめたビュー
+// ゲーム要素をまとめたビュー - パフォーマンス最適化版
 struct GameContentView: View {
     @EnvironmentObject private var gameState: GameState
     
     var body: some View {
         ZStack {
             // 背景
-            Color.black.opacity(0.01)  // ZStackが空だとエラーになるのを防ぐダミー要素
+            Color.black.opacity(0.01).edgesIgnoringSafeArea(.all)
             
-            // ブロック
-            ForEach(gameState.blocks) { block in
+            // ブロック - IDを明示的に指定して再利用性向上
+            ForEach(gameState.blocks, id: \.id) { block in
                 BlockView(block: block)
+                    // 効率的なキャッシュヒント - アニメーション中のみキャッシュを無効化
+//                    .cacheHint(block.isAnimating ? .transient : .automatic)
             }
             
-            // パドル
+            // パドル - 常に動くのでキャッシュは不要
             PaddleView(paddle: gameState.paddle)
             
-            // パドル衝突エフェクト
-            if gameState.showPaddleHitEffect {
-                PaddleHitEffectView()
-            }
-            
-            // レーザー
+            // レーザー - 動きが速いのでキャッシュ不要
             ForEach(0..<gameState.lasers.count, id: \.self) { index in
                 LaserView(laser: gameState.lasers[index])
             }
+            .drawingGroup() // レーザーエフェクトをGPUで処理
             
-            // ボール（複数）
-            ForEach(0..<gameState.balls.count, id: \.self) { index in
-                BallView(ball: gameState.balls[index])
+            // ボール - 複数ボールをまとめてGPU処理
+            ZStack {
+                ForEach(0..<gameState.balls.count, id: \.self) { index in
+                    BallView(ball: gameState.balls[index])
+                }
             }
+            .drawingGroup() // ボールと残像をまとめてGPU処理
             
             // ゲーム情報表示
-            GameInfoView()
-            
-            // ゲーム開始メッセージ
-            StartMessageView()
-            
-            // ゲームオーバー表示
-            GameOverView()
-            
-            // レベルアップメッセージ
-            LevelUpMessageView()
-            
-            // 画面フラッシュエフェクト
-            if gameState.showScreenFlash {
-                ScreenFlashView()
+            VStack {
+                // ゲーム情報と各種UI
+                GameInfoView()
+//                    .cacheHint(.automatic) // 静的なコンテンツはキャッシュ
+                
+                Spacer()
             }
-            
-            // スターコンボエフェクト
-            if gameState.showStarComboEffect {
-                StarComboEffectView()
+            .zIndex(50)
+
+            // エフェクト類は条件付きレンダリング
+            Group {
+                // 画面フラッシュエフェクト - 最前面に表示
+                if gameState.showScreenFlash {
+                    ScreenFlashView()
+                        .drawingGroup()
+                        .zIndex(100)
+                }
+                
+                // スターコンボエフェクト
+                if gameState.showStarComboEffect {
+                    StarComboEffectView()
+                        .drawingGroup()
+                        .zIndex(90)
+                }
+                
+                // パドル衝突エフェクト
+                if gameState.showPaddleHitEffect {
+                    PaddleHitEffectView()
+                        .drawingGroup()
+                        .zIndex(80)
+                }
+                
+                // ゲーム開始メッセージ
+                if !gameState.isGameStarted && !gameState.isGameOver {
+                    StartMessageView()
+                        .transition(.opacity)
+                        .zIndex(70)
+                }
+                
+                // ゲームオーバー表示
+                if gameState.isGameOver {
+                    GameOverView()
+                        .transition(.scale.combined(with: .opacity))
+                        .zIndex(60)
+                }
+                
+                // レベルアップメッセージ
+                if gameState.showLevelUpMessage {
+                    LevelUpMessageView()
+                        .transition(.scale)
+                        .zIndex(50)
+                }
             }
         }
+        // 全体をGPUレンダリング
+        .drawingGroup()
     }
 }
 
@@ -374,52 +433,56 @@ struct PaddleView: View {
     }
 }
 
-// ボールのビュー（星/円/楕円の3種類に対応）
+// ボールのビュー（パフォーマンス最適化版）
 struct BallView: View {
     let ball: Ball
     
     var body: some View {
+        // 最適化：レイヤー数をまとめてZStackを減らす
         ZStack {
-            // 先に残像を描画（背面）
-            ForEach(0..<ball.positionHistory.count, id: \.self) { i in
+            // 残像（パフォーマンス向上のため最大5つに制限）
+            ForEach(max(0, ball.positionHistory.count - 5)..<ball.positionHistory.count, id: \.self) { i in
                 trailShape(index: i)
+                    // ブレンドモードはdrawingGroupで効率化するため個別設定せず、親で一括して適用
             }
             
-            // 後からボール本体を描画（前面）
+            // ボール本体
             mainBallShape()
         }
+        // 全体にブレンドモードを適用して視覚効果を高める
+        .blendMode(.screen)
     }
     
-    // メインのボール形状
+    // メインのボール形状 - より最適化
     @ViewBuilder
     private func mainBallShape() -> some View {
         Group {
             switch ball.shape {
             case .star:
-                // 星型
-                Image(systemName: "star.fill")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: ball.radius * 3, height: ball.radius * 3) // 星はやや大きめに表示
-                    .foregroundColor(ball.color)
+                // 星型 - 形状を簡略化
+                Star(corners: 5, smoothness: 0.45)
+                    .fill(ball.color)
+                    .frame(width: ball.radius * 3, height: ball.radius * 3)
                     .rotationEffect(ball.rotation)
                     
             case .circle:
-                // 円型
+                // 円型 - シンプルな形状
                 Circle()
-                    .frame(width: ball.effectiveRadius * 2, height: ball.effectiveRadius * 2) // 成長を反映
-                    .foregroundColor(ball.color)
+                    .fill(ball.color)
+                    .frame(width: ball.effectiveRadius * 2, height: ball.effectiveRadius * 2)
                 
             case .oval:
-                // 楕円型
+                // 楕円型 - シンプルな形状
                 Ellipse()
-                    .frame(width: ball.radius * 3, height: ball.radius * 1.5) // 横長の楕円
-                    .foregroundColor(ball.color)
+                    .fill(ball.color)
+                    .frame(width: ball.radius * 3, height: ball.radius * 1.5)
                     .rotationEffect(ball.rotation)
             }
         }
         .overlay(ballCounterView())
         .position(ball.position)
+        // シャドウを簡略化
+        .shadow(color: ball.color.opacity(0.8), radius: 3)
     }
     
     // ボールのカウンター表示（必要な場合のみ）
@@ -430,7 +493,7 @@ struct BallView: View {
                 Text("\(ball.comboCount)/\(7)")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.white)
-                    .offset(y: -ball.radius * 2.5) // ボールの上に表示
+                    .offset(y: -ball.radius * 2.5)
             } else if ball.shape == .star && ball.comboCount > 0 {
                 // 移動中の星型ボールは簡易表示
                 HStack(alignment: .bottom, spacing: 4) {
@@ -439,109 +502,48 @@ struct BallView: View {
                     Text("COMBO!")
                         .font(.system(size: 10, weight: .bold))
                 }
-                    .foregroundColor(.white)
-                    .background(Circle().fill(Color.black.opacity(0.5))
+                .foregroundColor(.white)
+                .background(Circle().fill(Color.black.opacity(0.5))
                     .frame(height: 14))
-                    .offset(y: -ball.radius * 3.0)
-                    .fixedSize()
-                    .lineLimit(1)
+                .offset(y: -ball.radius * 3.0)
+                .fixedSize()
+                .lineLimit(1)
             }
         }
     }
     
-    // 残像の形状
+    // 残像の形状 - パフォーマンス最適化
     @ViewBuilder
     private func trailShape(index: Int) -> some View {
+        let normalizedIndex = CGFloat(index - max(0, ball.positionHistory.count - 5)) / min(CGFloat(5), CGFloat(ball.positionHistory.count))
+        let opacity = 0.1 + normalizedIndex * 0.2 // 0.1〜0.3の範囲
+        
         Group {
             switch ball.shape {
             case .star:
-                // 星型の残像
-                Image(systemName: "star.fill")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: ball.radius * 3 * trailScale(for: index), height: ball.radius * 3 * trailScale(for: index))
-                    .foregroundColor(getTrailColor(for: index))
-                    .rotationEffect(ball.rotation - Angle(degrees: Double(index) * 5)) // 残像ごとに少しずつ回転を変える
+                // 星型の残像 - より軽量化
+                Star(corners: 5, smoothness: 0.45)
+                    .fill(ball.color.opacity(opacity))
+                    .frame(width: ball.radius * 3 * 0.7, height: ball.radius * 3 * 0.7)
+                    .rotationEffect(ball.rotation - Angle(degrees: Double(index) * 5))
                 
             case .circle:
-                // 円型の残像
+                // 円型の残像 - より軽量化
                 Circle()
-                    .frame(width: ball.effectiveRadius * 2 * trailScale(for: index), height: ball.effectiveRadius * 2 * trailScale(for: index))
-                    .foregroundColor(getTrailColor(for: index))
+                    .fill(ball.color.opacity(opacity))
+                    .frame(width: ball.effectiveRadius * 2 * 0.9, height: ball.effectiveRadius * 2 * 0.9)
                 
             case .oval:
-                // 楕円型の残像
+                // 楕円型の残像 - より軽量化
                 Ellipse()
-                    .frame(width: ball.radius * 3 * trailScale(for: index), height: ball.radius * 1.5 * trailScale(for: index))
-                    .foregroundColor(getTrailColor(for: index))
-                    .rotationEffect(ball.rotation - Angle(degrees: Double(index) * 5)) // 残像ごとに少しずつ回転を変える
+                    .fill(ball.color.opacity(opacity))
+                    .frame(width: ball.radius * 3 * 0.7, height: ball.radius * 1.5 * 0.7)
+                    .rotationEffect(ball.rotation - Angle(degrees: Double(index) * 5))
             }
         }
         .position(ball.positionHistory[index])
-    }
-    
-    // インデックスに基づいてスケールを計算
-    private func trailScale(for index: Int) -> CGFloat {
-        // 円形ボールの場合はボールの成長に合わせて残像のサイズも大きく
-        if ball.shape == .circle {
-            // 成長係数を考慮しつつ、少し小さめの0.9倍サイズに
-            return 0.9
-        } else {
-            // その他の形状は従来通り0.7倍サイズに
-            return 0.7
-        }
-    }
-    
-    // インデックスに基づいて色を取得
-    private func getTrailColor(for index: Int) -> Color {
-        let count = ball.positionHistory.count
-        // 残像のインデックスを0.0〜1.0の範囲に正規化
-        let normalizedIndex = CGFloat(index) / CGFloat(max(1, count - 1))
-        
-        // 基本透明度を下げて、より薄くする（0.1〜0.3の範囲）
-        let opacity = 0.1 + normalizedIndex * 0.2
-        
-        // 各ボールの形状に応じたカラースキーム
-        switch ball.shape {
-        case .star:
-            // 黄色の星型用の残像
-            if normalizedIndex < 0.3 {
-                // 古い残像
-                return Color(red: 0.9, green: 0.8, blue: 0.2, opacity: opacity)
-            } else if normalizedIndex < 0.6 {
-                // 中間の残像
-                return Color(red: 1.0, green: 0.9, blue: 0.3, opacity: opacity)
-            } else {
-                // 新しい残像
-                return Color(red: 1.0, green: 0.95, blue: 0.4, opacity: opacity)
-            }
-            
-        case .circle:
-            // 水色の丸型用の残像
-            if normalizedIndex < 0.3 {
-                // 古い残像
-                return Color(red: 0.2, green: 0.7, blue: 1.0, opacity: opacity)
-            } else if normalizedIndex < 0.6 {
-                // 中間の残像
-                return Color(red: 0.4, green: 0.8, blue: 1.0, opacity: opacity)
-            } else {
-                // 新しい残像
-                return Color(red: 0.5, green: 0.9, blue: 1.0, opacity: opacity)
-            }
-            
-        case .oval:
-            // オレンジ色の楕円型用の残像
-            if normalizedIndex < 0.3 {
-                // 古い残像
-                return Color(red: 0.9, green: 0.5, blue: 0.1, opacity: opacity)
-            } else if normalizedIndex < 0.6 {
-                // 中間の残像
-                return Color(red: 1.0, green: 0.6, blue: 0.2, opacity: opacity)
-            } else {
-                // 新しい残像
-                return Color(red: 1.0, green: 0.7, blue: 0.3, opacity: opacity)
-            }
-        }
+        // ぼかし効果を単純化してパフォーマンス向上
+        .blur(radius: 1.5)
     }
 }
 
@@ -673,6 +675,7 @@ struct Star: Shape {
     }
 }
 
+// BlockViewの最適化
 struct BlockView: View {
     let block: Block
     @State private var rainbowPhase: Double = 0
@@ -684,88 +687,91 @@ struct BlockView: View {
     @State private var showOriginalBlock: Bool = true
     
     var body: some View {
-        ZStack {
+        Group {
             // アニメーションするブロック
             if block.isAnimating {
-                // 最も外側の眩しい発光レイヤー（白）
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.white)
-                    .frame(width: block.size.width * 1.5, height: block.size.height * 1.5)
-                    .position(block.position)
-                    .blur(radius: 15)
-                    .opacity(pulseOpacity * 0.7)
-                    .scaleEffect(scaleEffect + 0.2)
-                    .zIndex(12)
-                
-                // 中間の発光レイヤー
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(brightRainbowGradient)
-                    .frame(width: block.size.width * 1.4, height: block.size.height * 1.4)
-                    .position(block.position)
-                    .blur(radius: 10)
-                    .opacity(opacity * 0.9)
-                    .scaleEffect(scaleEffect + 0.1)
-                    .zIndex(11)
-                
-                // 虹色の輝くエフェクト（メイン）
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(rainbowGradient)
-                    .frame(width: block.size.width * 1.3, height: block.size.height * 1.3)
-                    .position(block.position)
-                    .blur(radius: 8)
-                    .opacity(opacity)
-                    .scaleEffect(scaleEffect)
-                    .shadow(color: .white.opacity(0.8), radius: 15, x: 0, y: 0)
-                    .animation(.easeInOut(duration: 0.7), value: scaleEffect)
-                    .animation(.easeInOut(duration: 0.7), value: opacity)
-                    .zIndex(10) // 虹色エフェクトを最前面に
-                    .onAppear {
-                        // 元のブロックをすぐに非表示
-                        withAnimation(.easeOut(duration: 0.1)) {
-                            showOriginalBlock = false
-                        }
-                        
-                        // 虹色の回転アニメーション
-                        withAnimation(.linear(duration: 0.4).repeatForever(autoreverses: false)) {
-                            rainbowPhase = 360
-                        }
-                        
-                        // パルス効果のアニメーション
-                        withAnimation(.easeInOut(duration: 0.2).repeatCount(3, autoreverses: true)) {
-                            pulseOpacity = 0.9
-                        }
-                        
-                        // ブロックが消えるアニメーション
-                        withAnimation(.easeInOut(duration: 0.7)) {
-                            scaleEffect = 1.7
-                            opacity = 0
-                        }
+                ZStack {
+                    // 最も外側の眩しい発光レイヤー（白）- 最適化のためレンダリング条件を追加
+                    if pulseOpacity > 0.1 {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.white)
+                            .frame(width: block.size.width * 1.5, height: block.size.height * 1.5)
+                            .position(block.position)
+                            .blur(radius: 15)
+                            .opacity(pulseOpacity * 0.7)
+                            .scaleEffect(scaleEffect + 0.2)
+                            .zIndex(12)
                     }
+                    
+                    // 中間の発光レイヤー - パフォーマンス向上のためdrawingGroup()を使用
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(brightRainbowGradient)
+                        .frame(width: block.size.width * 1.4, height: block.size.height * 1.4)
+                        .position(block.position)
+                        .blur(radius: 10)
+                        .opacity(opacity * 0.9)
+                        .scaleEffect(scaleEffect + 0.1)
+                        .zIndex(11)
+                        .drawingGroup() // GPU描画の活用
+                    
+                    // 虹色の輝くエフェクト（メイン）
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(rainbowGradient)
+                        .frame(width: block.size.width * 1.3, height: block.size.height * 1.3)
+                        .position(block.position)
+                        .blur(radius: 8)
+                        .opacity(opacity)
+                        .scaleEffect(scaleEffect)
+                        .shadow(color: .white.opacity(0.8), radius: 15, x: 0, y: 0)
+                        .animation(.easeInOut(duration: 0.7), value: scaleEffect)
+                        .animation(.easeInOut(duration: 0.7), value: opacity)
+                        .zIndex(10) // 虹色エフェクトを最前面に
+                        .drawingGroup() // GPU描画の活用
+                }
+                .onAppear {
+                    // 元のブロックをすぐに非表示 - 高速化のため遅延を減少
+                    withAnimation(.easeOut(duration: 0.05)) {
+                        showOriginalBlock = false
+                    }
+                    
+                    // 虹色の回転アニメーション - パフォーマンス重視で最適化
+                    withAnimation(.linear(duration: 0.4).repeatForever(autoreverses: false)) {
+                        rainbowPhase = 360
+                    }
+                    
+                    // パルス効果のアニメーション - 回数減少でパフォーマンス向上
+                    withAnimation(.easeInOut(duration: 0.2).repeatCount(2, autoreverses: true)) {
+                        pulseOpacity = 0.9
+                    }
+                    
+                    // ブロックが消えるアニメーション - 高速化
+                    withAnimation(.easeInOut(duration: 0.6)) {
+                        scaleEffect = 1.7
+                        opacity = 0
+                    }
+                }
             }
-            
             // 通常のブロック表示（アニメーション開始時にすぐ非表示）
-            if !block.isAnimating || (block.isAnimating && showOriginalBlock) {
+            else {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(block.color)
                     .frame(width: block.size.width, height: block.size.height)
                     .position(block.position)
-                    .opacity(block.isAnimating ? 0 : 1.0) // アニメーション中は透明に
                     .scaleEffect(block.isAppearing ? 0.01 : 1.0) // 出現アニメーション
                     .opacity(block.isAppearing ? 0.0 : 1.0) // 出現時フェードイン
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: block.isAppearing)
-                    .animation(.easeOut(duration: 0.15), value: block.isAnimating)
                     .zIndex(1) // 元のブロックは背面に
             }
         }
+        // パフォーマンス最適化
+//        .cacheHint(block.isAnimating ? .transient : .automatic)
     }
     
-    // 虹色のグラデーション（より明るく彩度の高い色を使用）
+    // 虹色のグラデーション - 最適化して処理を軽量化
     var rainbowGradient: AngularGradient {
         AngularGradient(
             gradient: Gradient(colors: [
-                .red, Color.orange.opacity(1.3), Color.yellow.opacity(1.5), 
-                Color.green.opacity(1.3), Color.blue.opacity(1.3), 
-                Color.purple.opacity(1.3), Color.pink.opacity(1.5), .red
+                .red, .orange, .yellow, .green, .blue, .purple, .pink, .red
             ]),
             center: .center,
             startAngle: .degrees(rainbowPhase),
@@ -773,13 +779,13 @@ struct BlockView: View {
         )
     }
     
-    // より明るい虹色のグラデーション（外側の発光用）
+    // より明るい虹色のグラデーション - 色数を削減して最適化
     var brightRainbowGradient: AngularGradient {
         AngularGradient(
             gradient: Gradient(colors: [
-                Color.red.opacity(1.5), Color.orange.opacity(1.6), Color.yellow.opacity(1.8), 
+                Color.red.opacity(1.5), Color.yellow.opacity(1.8), 
                 Color.green.opacity(1.6), Color.blue.opacity(1.6), 
-                Color.purple.opacity(1.6), Color.pink.opacity(1.8), Color.red.opacity(1.5)
+                Color.purple.opacity(1.6), Color.red.opacity(1.5)
             ]),
             center: .center,
             startAngle: .degrees(rainbowPhase + 30), // オフセットを付けて動きを出す

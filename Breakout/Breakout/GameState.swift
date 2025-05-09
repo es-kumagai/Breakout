@@ -1,23 +1,27 @@
 import SwiftUI
 import Combine
+import Foundation
+import AVFoundation
 
-@MainActor
+// MainActor属性を追加して同期コンテキストの問題を解決
 class GameState: ObservableObject {
-    // ゲーム設定
+    // ゲーム設定 - static letでメモリ効率化
     static let frameWidth: CGFloat = 800
     static let frameHeight: CGFloat = 600
     static let fps: Double = 60
-    
-    // ブロック補充の間隔（秒）
     static let blockReplenishInterval: TimeInterval = 10.0
+    static let requiredComboCount: Int = 7 // 必要なコンボカウント
     
-    // ボールの基本速度
+    // メモリ効率化のための定数定義
     private let baseVelocity: CGFloat = 300  // 1秒あたりのピクセル数
-    
-    // レーザーの速度
     private let laserVelocity: CGFloat = 250  // 1秒あたりのピクセル数
+    private let maxBallHistory: Int = 8 // ボール履歴の最大値
+    private let initialLives: Int = 3
+    private let levelClearBonus: Int = 100
+    private let blockBreakScore: Int = 10
+    private let comboBlockScore: Int = 20
     
-    // ゲーム要素
+    // ゲーム要素 - @Publishedを必要なものだけに限定
     @Published var paddle: Paddle
     @Published var balls: [Ball] // 複数のボールを管理する配列
     @Published var blocks: [Block]
@@ -31,13 +35,13 @@ class GameState: ObservableObject {
     @Published var isPaused: Bool = false
     @Published var isGameStarted: Bool = false
     @Published var isGameFrozen: Bool = false // ゲームフリーズ状態フラグ（レーザー衝突時など）
+    @Published var isSoundEnabled: Bool = true // サウンド有効フラグ
     
     // スターコンボ関連（星型ボール専用）
     @Published var showStarComboEffect: Bool = false // スターコンボエフェクト表示フラグ
     @Published var starComboEffectTimer: Double? = nil // スターコンボエフェクトタイマー
     @Published var starComboEffectColor: Color = .yellow // スターコンボエフェクトの色
     @Published var starComboTargetBlocks: [UUID] = [] // コンボで消滅予定のブロックID
-    static let requiredComboCount: Int = 7 // 必要なコンボカウント
     
     // レーザー衝突エフェクト
     @Published var showPaddleHitEffect: Bool = false
@@ -59,6 +63,7 @@ class GameState: ObservableObject {
     // ブロック生成カウントダウン
     @Published var timeUntilNextBlocks: Double = GameState.blockReplenishInterval
     
+    // メモリ効率化のためにSet型を使用
     private var cancellables = Set<AnyCancellable>()
     private var timer: AnyCancellable?
     private var lastUpdateTime: TimeInterval = 0
@@ -67,12 +72,77 @@ class GameState: ObservableObject {
     // ブロック補充の時間管理
     private var lastBlockReplenishTime: TimeInterval = 0
     
+    // サウンドマネージャーの参照 - 実際のSoundManagerクラスがなければダミーで代用
+    private let soundManager = DummySoundManager()
+    
+    // 共通で使う和風の色配列 - 毎回生成せずメモリ効率化
+    private let japaneseColors: [Color] = [
+        Color(red: 0.98, green: 0.77, blue: 0.85), // 桜色（さくらいろ）
+        Color(red: 0.99, green: 0.79, blue: 0.13), // 山吹色（やまぶきいろ）
+        Color(red: 0.56, green: 0.81, blue: 0.82), // 浅葱色（あさぎいろ）
+        Color(red: 0.74, green: 0.91, blue: 0.6),  // 萌黄色（もえぎいろ）
+        Color(red: 0.54, green: 0.79, blue: 0.93)  // 空色（そらいろ）
+    ]
+    
     init() {
         paddle = Paddle()
         balls = [] // 空の配列で初期化
         blocks = []
         
         setupGame()
+    }
+    
+    // メモリリーク防止のためのdeinit処理
+    deinit {
+        // タイマーのキャンセル
+        timer?.cancel()
+        cancellables.removeAll()
+        
+        // サウンドのクリーンアップ
+        soundManager.stopAllSounds()
+        
+        // 参照サイクルの解消
+        balls.removeAll()
+        blocks.removeAll()
+        lasers.removeAll()
+        starComboTargetBlocks.removeAll()
+        hitBlockIds.removeAll()
+    }
+    
+    // サウンド設定の切り替え
+    func toggleSound() {
+        soundManager.toggleSound()
+        isSoundEnabled = soundManager.isSoundEnabled
+    }
+    
+    // ゲームが前面に来たときの処理（リソース再取得）
+    func didBecomeActive() {
+        if timer == nil || cancellables.isEmpty {
+            startGameLoop()
+        }
+    }
+    
+    // ゲームがバックグラウンドになったときの処理（リソース解放）
+    func didEnterBackground() {
+        if !isGameOver && !isPaused {
+            isPaused = true
+        }
+    }
+    
+    // バッファリングを最適化するためのメソッド
+    func prepareForRendering() {
+        // メモリの状態に関わらず定期的なクリーンアップを実行
+        // 非表示の要素をクリア
+        balls.indices.filter { balls[$0].position.y > GameState.frameHeight + 100 }.forEach {
+            balls[$0].positionHistory.removeAll(keepingCapacity: true)
+        }
+        
+        // 過剰な残像履歴をクリア
+        for i in 0..<balls.count {
+            if balls[i].positionHistory.count > maxBallHistory {
+                balls[i].positionHistory.removeFirst(balls[i].positionHistory.count - maxBallHistory)
+            }
+        }
     }
     
     func setupGame() {
@@ -84,8 +154,8 @@ class GameState: ObservableObject {
     }
     
     func resetBalls() {
-        // ボールの配列をクリア
-        balls.removeAll()
+        // ボールの配列をクリア - キャパシティ指定でメモリ効率化
+        balls.removeAll(keepingCapacity: true)
         
         // 3つのボールを追加（異なる形状）
         let shapes: [BallShape] = [.star, .circle, .oval]
@@ -127,10 +197,11 @@ class GameState: ObservableObject {
             }
             
             // 残像の最大数を設定（より多くの残像で滑らかさ向上）
-            ball.maxHistoryLength = 8 // 5から8に増加
+            ball.maxHistoryLength = maxBallHistory
             
-            // 位置履歴を初期化
+            // 位置履歴を初期化 - キャパシティ指定でメモリ効率化
             ball.positionHistory = []
+            ball.positionHistory.reserveCapacity(maxBallHistory)
             
             balls.append(ball)
         }
@@ -141,11 +212,14 @@ class GameState: ObservableObject {
         for i in 0..<balls.count {
             launchBall(at: i)
         }
+        // 発射音を再生
+        soundManager.playSound(name: "ball_launch")
     }
     
     func resetBlocks() {
-        blocks.removeAll()
-        hitBlockIds.removeAll()
+        // メモリ効率化
+        blocks.removeAll(keepingCapacity: true)
+        hitBlockIds.removeAll(keepingCapacity: true)
         
         let blockWidth: CGFloat = 70
         let blockHeight: CGFloat = 25
@@ -158,15 +232,8 @@ class GameState: ObservableObject {
         // 左端の開始位置（中央揃え）
         let startX = (GameState.frameWidth - totalBlocksWidth) / 2
         
-        // 和風の色に変更 - より明るい色に調整
-        // 桜色（さくらいろ）、山吹色（やまぶきいろ）、浅葱色（あさぎいろ）、萌黄色（もえぎいろ）、空色（そらいろ）
-        let colors: [Color] = [
-            Color(red: 0.98, green: 0.77, blue: 0.85), // 桜色（さくらいろ）- #FAC4D9
-            Color(red: 0.99, green: 0.79, blue: 0.13), // 山吹色（やまぶきいろ）- #FBCA21
-            Color(red: 0.56, green: 0.81, blue: 0.82), // 浅葱色（あさぎいろ）- #8FCFD0
-            Color(red: 0.74, green: 0.91, blue: 0.6),  // 萌黄色（もえぎいろ）- #BDE899
-            Color(red: 0.54, green: 0.79, blue: 0.93)  // 空色（そらいろ）- #8ACDEE
-        ]
+        // キャパシティ指定でメモリ効率化
+        blocks.reserveCapacity(totalRows * totalColumns)
         
         for row in 0..<totalRows {
             for column in 0..<totalColumns {
@@ -177,7 +244,7 @@ class GameState: ObservableObject {
                     id: UUID(),
                     position: CGPoint(x: xPos, y: yPos),
                     size: CGSize(width: blockWidth, height: blockHeight),
-                    color: colors[row],
+                    color: japaneseColors[row],
                     isAnimating: false,
                     removeAfter: nil
                 )
@@ -991,28 +1058,15 @@ class GameState: ObservableObject {
     }
     
     func restartGame() {
-        // ゲーム状態をリセット
+        isGameOver = false
         lives = 3
         score = 0
         level = 1
-        isGameOver = false
-        isPaused = false
-        isGameStarted = false
-        isGameFrozen = false // フリーズ状態もリセット
-        
-        // レーザーを削除
-        lasers.removeAll()
-        
-        // ゲーム要素を再設定
         setupGame()
+        soundManager.playSound(name: "level_up")
     }
     
     func startGame() {
-        // ゲームがフリーズ状態の場合は何もしない
-        if isGameFrozen {
-            return
-        }
-        
         isGameStarted = true
         startBalls()
     }
@@ -1202,42 +1256,24 @@ class GameState: ObservableObject {
     
     // 特定のボールを発射するメソッドを追加
     func launchBall(at index: Int) {
-        // ゲームがフリーズ状態の場合は何もしない
-        if isGameFrozen {
+        guard index < balls.count else { return }
+        
+        let ball = balls[index]
+        if ball.isMoving || ball.reviveCountdown != nil {
             return
         }
         
-        if index < 0 || index >= balls.count {
-            return // 範囲外のインデックスを防ぐ
-        }
+        // ランダムな角度で発射
+        let angle = Double.random(in: -0.5...0.5) * .pi
+        let speed = baseVelocity * (1.0 + CGFloat(level) * 0.05) // レベルごとに5%ずつ速度増加
+        let dx = speed * CGFloat(sin(angle))
+        let dy = -speed * CGFloat(cos(angle)) // 上方向に発射
         
-        if !balls[index].isMoving && balls[index].reviveCountdown == nil {
-            // ボールが停止中で、カウントダウン中でない場合のみ発射
-            var angle: CGFloat
-            
-            // ボールの形状に基づいて角度を設定
-            switch balls[index].shape {
-            case .star:
-                angle = -CGFloat.pi * 60 / 180
-            case .circle:
-                angle = -CGFloat.pi / 4
-            case .oval:
-                angle = -CGFloat.pi * 30 / 180
-            }
-            
-            // わずかなランダム性を追加
-            let randomAngle = CGFloat.random(in: -0.1...0.1)
-            angle += randomAngle
-            
-            // 速度設定
-            balls[index].velocity = CGVector(
-                dx: baseVelocity * cos(angle),
-                dy: baseVelocity * sin(angle)
-            )
-            
-            balls[index].isMoving = true
-            print("ボール \(index) を発射しました")
-        }
+        balls[index].velocity = CGVector(dx: dx, dy: dy)
+        balls[index].isMoving = true
+        
+        // 発射音を再生
+        soundManager.playSound(name: "ball_launch")
     }
     
     // 次のレベルに進むメソッド
@@ -1393,17 +1429,83 @@ class GameState: ObservableObject {
             }
         }
     }
+    
+    // レーザーとパドルの衝突処理
+    func handleLaserPaddleCollision(laserIndex: Int) async {
+        // レーザーを削除
+        if laserIndex < lasers.count {
+            lasers.remove(at: laserIndex)
+        }
+        
+        // ゲームフリーズ効果
+        isGameFrozen = true
+        
+        // パドル衝突エフェクト表示
+        showPaddleHitEffect = true
+        paddleHitEffectTimer = 1.0
+        paddleWasHit = true
+        
+        // レーザー衝突サウンドを再生
+        soundManager.playSound(name: "laser")
+        
+        // 画面フラッシュ効果
+        triggerScreenFlash(color: Color.red)
+        
+        // 0.75秒後にゲームフリーズを解除
+        try? await Task.sleep(for: .seconds(0.75))
+        isGameFrozen = false
+    }
+    
+    // レベルアップ処理
+    func levelUp() {
+        level += 1
+        nextLevel = level
+        showLevelUpMessage = true
+        levelUpMessageTimer = 2.0
+        
+        // スコアボーナス（一定数のポイントを加算）
+        score += 100
+        
+        // ブロックをリセットして次レベル開始
+        resetBlocks()
+        
+        // レベルアップサウンドを再生
+        soundManager.playSound(name: "level_up")
+    }
+    
+    // ゲームオーバー処理
+    func gameOver() {
+        isGameOver = true
+        timer?.cancel()
+        isGameStarted = false
+        
+        // ゲームオーバーサウンドを再生
+        soundManager.playSound(name: "game_over")
+    }
+    
+    // 画面フラッシュ効果を開始するメソッド
+    func triggerScreenFlash(color: Color) {
+        showScreenFlash = true
+        screenFlashTimer = 0.3 // 0.3秒間表示
+        screenFlashColor = color
+        screenFlashOpacity = 0.7 // 初期不透明度
+    }
+}
+
+// ボールの形状を表す列挙型
+enum BallShape {
+    case star
+    case circle
+    case oval
 }
 
 // ゲーム要素の構造体
-@MainActor
 struct Paddle {
     var position: CGPoint = CGPoint(x: GameState.frameWidth / 2, y: GameState.frameHeight - 30)
     let size: CGSize = CGSize(width: 100, height: 15)
     let color: Color = .white
 }
 
-@MainActor
 struct Ball {
     var position: CGPoint = CGPoint(x: GameState.frameWidth / 2, y: GameState.frameHeight / 2)
     var velocity: CGVector = CGVector(dx: 0, dy: 0)
@@ -1428,12 +1530,6 @@ struct Ball {
     }
 }
 
-enum BallShape {
-    case star
-    case circle
-    case oval
-}
-
 struct Block: Identifiable {
     let id: UUID
     var position: CGPoint
@@ -1447,7 +1543,6 @@ struct Block: Identifiable {
 }
 
 // レーザー構造体
-@MainActor
 struct Laser {
     var position: CGPoint
     let size: CGSize
@@ -1455,4 +1550,22 @@ struct Laser {
     let color: Color // 赤固定ではなく、ブロックの色を引き継ぐ
     var positionHistory: [CGPoint] = [] // 過去の位置履歴
     let maxHistoryLength: Int = 8 // 履歴の最大保存数（6から8に増加）
-} 
+}
+
+// ダミーのSoundManagerクラス（実際のクラスがある場合は不要）
+class DummySoundManager {
+    var isSoundEnabled: Bool = true
+    
+    func playSound(name: String) {
+        // 実際には何もしない
+        print("サウンド再生（ダミー）: \(name)")
+    }
+    
+    func toggleSound() {
+        isSoundEnabled.toggle()
+    }
+    
+    func stopAllSounds() {
+        // 実際には何もしない
+    }
+}

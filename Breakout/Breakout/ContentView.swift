@@ -68,9 +68,8 @@ struct ContentView: View {
                             gameState.startGame()
                         } else {
                             // 既にゲームが開始されている場合は、停止中ボールをチェックして発射する
-                            for i in 0..<gameState.balls.count where !gameState.balls[i].isMoving && gameState.balls[i].reviveCountdown == nil {
-                                gameState.launchBall(at: i)
-                            }
+                            // 個別発射ではなく時間差発射機能を使用
+                            gameState.startWaitingBalls()
                         }
                     }
             )
@@ -84,9 +83,8 @@ struct ContentView: View {
                     gameState.startGame()
                 } else if gameState.isGameStarted && !gameState.isGameOver {
                     // 既にゲームが開始されている場合は、停止中ボールをチェックして発射する
-                    for i in 0..<gameState.balls.count where !gameState.balls[i].isMoving && gameState.balls[i].reviveCountdown == nil {
-                        gameState.launchBall(at: i)
-                    }
+                    // 個別発射ではなくstartWaitingBallsを使用
+                    gameState.startWaitingBalls()
                 }
             }
             // キーボードサポートも追加
@@ -104,9 +102,8 @@ struct ContentView: View {
                     return .handled
                 } else {
                     // ボール発射
-                    for i in 0..<gameState.balls.count where !gameState.balls[i].isMoving && gameState.balls[i].reviveCountdown == nil {
-                        gameState.launchBall(at: i)
-                    }
+                    // 個別発射ではなくstartWaitingBallsを使用
+                    gameState.startWaitingBalls()
                     return .handled
                 }
             }

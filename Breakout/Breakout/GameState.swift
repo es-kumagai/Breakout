@@ -87,6 +87,19 @@ class GameState: ObservableObject {
     @Published var showLaserHitMessage: Bool = false
     @Published var laserHitMessageTimer: Double? = nil
     
+    // ボール順次発射用のプロパティ
+    private var pendingBallIndices: [Int] = [] // 発射待ちのボールインデックス
+    private var nextBallLaunchTimer: Double? = nil // 次のボール発射までのタイマー
+    private let ballLaunchInterval: Double = 0.2 // ボール発射間隔（秒）
+    
+    // 復活ボール発射管理用プロパティ
+    private var revivedBallQueue: [Int] = [] // 復活して発射待ちのボールキュー
+    private var revivedBallLaunchTimer: Double? = nil // 復活ボール発射タイマー
+    private var shouldAutoLaunchRevivedBalls: Bool = false // 復活ボールの自動発射フラグ
+    
+    // 待機中ボールの時間差発射用プロパティ
+    private var waitingBallLaunchInterval: Double = 0.3 // 待機中ボール発射間隔（秒）
+    
     // メモリ効率化のためにSet型を使用
     private var cancellables = Set<AnyCancellable>()
     private var timer: AnyCancellable?
@@ -280,10 +293,18 @@ class GameState: ObservableObject {
     }
     
     func startBalls() {
-        // すべてのボールを発射
-        for i in 0..<balls.count {
-            launchBall(at: i)
+        // 発射順序の配列を作成 [1, 2, 0]（中央、右、左の順）
+        pendingBallIndices = [1, 2, 0]
+        
+        // 最初のボール（中央）を発射
+        if pendingBallIndices.count > 0 {
+            let firstBallIndex = pendingBallIndices.removeFirst()
+            launchBall(at: firstBallIndex)
+            
+            // 次のボール発射までのタイマーを設定
+            nextBallLaunchTimer = ballLaunchInterval
         }
+        
         // 発射音を再生
         soundManager.playSound(name: "ball_launch")
     }
@@ -389,6 +410,50 @@ class GameState: ObservableObject {
     func update(deltaTime: TimeInterval) {        
         guard !isGameOver else { return }
         
+        // 次のボール発射タイマーを更新
+        if let timer = nextBallLaunchTimer {
+            let newTimer = timer - deltaTime
+            if newTimer <= 0 {
+                // タイマー終了、次のボールを発射
+                if !pendingBallIndices.isEmpty {
+                    let nextBallIndex = pendingBallIndices.removeFirst()
+                    launchBall(at: nextBallIndex)
+                    
+                    // まだ発射するボールが残っていれば、次のタイマーを設定
+                    nextBallLaunchTimer = pendingBallIndices.isEmpty ? nil : waitingBallLaunchInterval
+                    
+                    print("時間差発射: ボール \(nextBallIndex) を発射、残り \(pendingBallIndices.count) 個")
+                } else {
+                    // 全てのボールを発射完了
+                    nextBallLaunchTimer = nil
+                    print("全てのボールの発射が完了しました")
+                }
+            } else {
+                nextBallLaunchTimer = newTimer
+            }
+        }
+        
+        // 復活ボール発射タイマーを更新
+        if let timer = revivedBallLaunchTimer {
+            let newTimer = timer - deltaTime
+            if newTimer <= 0 {
+                // タイマー終了、次の復活ボールを発射
+                if !revivedBallQueue.isEmpty {
+                    let nextBallIndex = revivedBallQueue.removeFirst()
+                    launchBall(at: nextBallIndex)
+                    
+                    // まだ発射するボールが残っていれば、次のタイマーを設定
+                    revivedBallLaunchTimer = revivedBallQueue.isEmpty ? nil : waitingBallLaunchInterval
+                } else {
+                    // 全ての復活ボールを発射完了
+                    revivedBallLaunchTimer = nil
+                    shouldAutoLaunchRevivedBalls = false
+                }
+            } else {
+                revivedBallLaunchTimer = newTimer
+            }
+        }
+        
         // スターコンボエフェクトタイマーを更新
         if let timer = starComboEffectTimer {
             let newTimer = timer - deltaTime
@@ -437,7 +502,7 @@ class GameState: ObservableObject {
                 // パドルヒットフラグをリセット
                 paddleWasHit = false
                 
-                // ボールをリセットして再開
+                // ボールをリセットして再開（ただしisGameStarted = falseにするだけで自動発射はしない）
                 resetBalls()
                 isGameStarted = false
             } else {
@@ -467,7 +532,7 @@ class GameState: ObservableObject {
                     // パドルヒットフラグをリセット
                     paddleWasHit = false
                     
-                    // ゲームを再開
+                    // ゲームを再開（ただしisGameStarted = falseにするだけで自動発射はしない）
                     resetBalls()
                     lasers.removeAll() // 全てのレーザーを削除
                     isGameStarted = false
@@ -526,12 +591,9 @@ class GameState: ObservableObject {
                 if paddleWasHit && !showLaserHitMessage {
                     paddleWasHit = false // フラグをリセット
                     
-                    // ライフを減らす - すでにcheckLaserCollisionsで減らされているので不要
-                    // lives -= 1
-                    
                     // ゲームオーバーまたは再開
                     if lives > 0 {
-                        // ライフが残っている場合は再開
+                        // ライフが残っている場合は再開（ただしisGameStarted = falseにするだけで自動発射はしない）
                         resetBalls()
                         lasers.removeAll() // 全てのレーザーを削除
                         isGameStarted = false
@@ -1462,6 +1524,10 @@ class GameState: ObservableObject {
         var visibleCountdowns = 0
         let maxVisibleCountdowns = 2 // 同時に表示するカウントダウンの最大数
         
+        // 同時復活の検出用変数（使用しないが念のため保持）
+        var justRevivedBallsCount = 0
+        var justRevivedBallIndices: [Int] = []
+        
         // 全てのボールに対して処理
         for i in 0..<balls.count {
             // 落下していて復活待ちのボールのみ処理
@@ -1481,6 +1547,10 @@ class GameState: ObservableObject {
                 if newCountdown <= 0 {
                     print("ボール \(i) が復活します")
                     reviveBall(at: i)
+                    
+                    // 同時復活カウント（統計用に記録するが使用しない）
+                    justRevivedBallsCount += 1
+                    justRevivedBallIndices.append(i)
                 }
                 
                 // 最大表示数を超えた場合は処理のみ行い表示は制限
@@ -1489,6 +1559,8 @@ class GameState: ObservableObject {
                 }
             }
         }
+        
+        // 自動発射ロジックは使用しない - 復活したボールはクリックまで待機するように修正
     }
     
     // 落下したボールを復活させる
@@ -1534,6 +1606,9 @@ class GameState: ObservableObject {
         
         // 位置履歴をクリア
         balls[index].positionHistory.removeAll()
+        
+        // 自動発射フラグは常にOFFに設定 - 復活ボールはクリックまで待機
+        shouldAutoLaunchRevivedBalls = false
         
         print("ボール \(index) が復活し、クリック待機中です。待機中ボール数: \(waitingCount + 1)")
     }
@@ -1978,6 +2053,48 @@ class GameState: ObservableObject {
         // スターコンボがアクティブでなければ関連データをクリア
         if !showStarComboEffect {
             starComboTargetBlocks.removeAll(keepingCapacity: true)
+        }
+    }
+    
+    // 待機中のボールをまとめて発射するメソッド（クリックハンドラから呼び出される）
+    func startWaitingBalls() {
+        // 既にボール発射タイマーが動作中の場合は何もしない（二重発射防止）
+        if nextBallLaunchTimer != nil {
+            print("ボール発射タイマーが既に動作中です")
+            return
+        }
+        
+        // 待機中のボールをリストアップ（移動していなくてカウントダウンもないボール）
+        let waitingBallIndices = balls.indices.filter { idx in
+            !balls[idx].isMoving && balls[idx].reviveCountdown == nil
+        }
+        
+        // 待機中のボールが無ければ何もしない
+        if waitingBallIndices.isEmpty {
+            return
+        }
+        
+        // 待機中のボールが1つだけなら即発射
+        if waitingBallIndices.count == 1 {
+            launchBall(at: waitingBallIndices[0])
+            return
+        }
+        
+        // 待機中のボールが2つ以上あるなら時間差発射
+        if waitingBallIndices.count >= 2 {
+            // 待機中のボールをキューに設定
+            pendingBallIndices = Array(waitingBallIndices)
+            
+            // 最初のボールを即座に発射
+            let firstBallIndex = pendingBallIndices.removeFirst()
+            launchBall(at: firstBallIndex)
+            
+            // 2つ目以降のボールのタイマーを設定
+            if !pendingBallIndices.isEmpty {
+                nextBallLaunchTimer = waitingBallLaunchInterval
+            }
+            
+            print("複数のボールを時間差発射します: 残り\(pendingBallIndices.count)個")
         }
     }
 }

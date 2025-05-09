@@ -51,9 +51,7 @@ struct GameView: View {
                         gameState.startGame()
                     } else {
                         // 既にゲームが開始されている場合は、停止中ボールをチェックして発射する
-                        for i in 0..<gameState.balls.count where !gameState.balls[i].isMoving && gameState.balls[i].reviveCountdown == nil {
-                            gameState.launchBall(at: i)
-                        }
+                        gameState.startWaitingBalls()
                     }
                 }
         )
@@ -67,9 +65,7 @@ struct GameView: View {
                 gameState.startGame()
             } else if gameState.isGameStarted && !gameState.isGameOver {
                 // 既にゲームが開始されている場合は、停止中ボールをチェックして発射する
-                for i in 0..<gameState.balls.count where !gameState.balls[i].isMoving && gameState.balls[i].reviveCountdown == nil {
-                    gameState.launchBall(at: i)
-                }
+                gameState.startWaitingBalls()
             }
         }
         .focusable()
@@ -87,9 +83,7 @@ struct GameView: View {
                 return .handled
             } else {
                 // ボール発射
-                for i in 0..<gameState.balls.count where !gameState.balls[i].isMoving && gameState.balls[i].reviveCountdown == nil {
-                    gameState.launchBall(at: i)
-                }
+                gameState.startWaitingBalls()
                 return .handled
             }
         }

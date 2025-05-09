@@ -1,0 +1,79 @@
+# Xcode
+#
+# gitignore template for Xcode projects
+#
+# Website: https://github.com/github/gitignore
+
+# User settings
+xcuserdata/
+
+# Build generated
+build/
+DerivedData/
+
+# Various settings
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Other
+*.xccheckout
+*.moved-aside
+*.xcuserstate
+
+# Objective-C/Swift specific
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+# Add this line if you want to avoid checking in source code from Swift Package Manager dependencies.
+# Packages/
+# Package.pins
+# Package.resolved
+# *.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# CocoaPods
+# Uncomment the line below if you want to avoid checking in source code from the Pods directory.
+# Pods/
+
+# Carthage
+# Uncomment the line below if you want to avoid checking in source code from the Carthage directory.
+# Carthage/Build
+
+# fastlane
+# Uncomment the line below if you want to avoid checking in your fastlane configuration files
+# fastlane/report.xml
+# fastlane/Preview.html
+# fastlane/screenshots
+# fastlane/test_output
+# fastlane/report.xml
+
+# Code Injection
+# Don't include the generated code injection files
+# .codeInjection/
+
+# AppCode
+# Uncomment the line below if you want to avoid checking in AppCode specific files
+# .idea/
+
+# Xcode Patch
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcworkspace/contents.xcworkspacedata
+!*.xcworkspace/xcshareddata/
+
+# Xcode 8 and earlier
+*.xcscmblueprint
+# End Generation Here

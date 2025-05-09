@@ -20,8 +20,6 @@ class GameState: ObservableObject {
     private let levelClearBonus: Int = 100
     private let blockBreakScore: Int = 10
     private let comboBlockScore: Int = 20
-    private let maxComboBlocksPerBatch: Int = 20 // スターコンボで一度に処理するブロックの上限（40から20に減少）
-    private let maxGradientStops: Int = 6 // グラデーションの最大ストップ数（8から6に減少）
     
     // 高性能レンダリング用のバッチ処理
     private var pendingComboTargets: [[UUID]] = [] // 複数バッチのブロックIDを管理
@@ -93,6 +91,11 @@ class GameState: ObservableObject {
         Color(red: 0.54, green: 0.79, blue: 0.93)  // 空色（そらいろ）
     ]
     
+    // 安定性重視のバッチ処理用
+    private var pendingComboBlocks: [Int] = [] // 処理待ちのブロックインデックス
+    private let safeVisibleBatchSize: Int = 4 // 安全のため、一度に処理するブロック数を制限
+    private let safeBatchInterval: Double = 0.3 // バッチ間の十分な間隔（GPUバッファのクリア時間確保）
+    
     init() {
         paddle = Paddle()
         balls = [] // 空の配列で初期化
@@ -161,6 +164,11 @@ class GameState: ObservableObject {
             if lasers[i].positionHistory.count > lasers[i].maxHistoryLength {
                 lasers[i].positionHistory.removeFirst(lasers[i].positionHistory.count - lasers[i].maxHistoryLength)
             }
+        }
+        
+        // GPUメモリの安定性を確保するための追加対策
+        if showStarComboEffect && starComboTargetBlocks.count > safeVisibleBatchSize {
+            starComboTargetBlocks = Array(starComboTargetBlocks.prefix(safeVisibleBatchSize))
         }
     }
     
@@ -349,11 +357,11 @@ class GameState: ObservableObject {
                 // タイマー終了
                 starComboEffectTimer = nil
                 
-                if currentBatchIndex < pendingComboTargets.count {
+                if !pendingComboBlocks.isEmpty {
                     // 次のバッチを処理
-                    processNextBatch()
+                    processNextComboBlockBatch()
                 } else {
-                    // すべてのバッチ処理完了
+                    // すべての処理完了
                     showStarComboEffect = false
                     starComboTargetBlocks.removeAll(keepingCapacity: false)
                 }
@@ -1501,12 +1509,13 @@ class GameState: ObservableObject {
                 return // これ以上の処理は不要なので終了
             }
             
-            // ボールとの衝突判定
+            // ボールとの衝突判定 - 発射前のボールも含めて全てのボールをチェック
             for j in 0..<balls.count {
                 let ball = balls[j]
                 
-                // 動いていないボールはスキップ
-                if !ball.isMoving { continue }
+                // ボールの動き状態に関わらず、すべてのボールに対して衝突判定を行う
+                // カウントダウン中のボールのみスキップ
+                if ball.reviveCountdown != nil { continue }
                 
                 // ボールとレーザーの距離を計算
                 let dx = laser.position.x - ball.position.x
@@ -1515,10 +1524,21 @@ class GameState: ObservableObject {
                 
                 // 衝突判定
                 if distance < ball.effectiveRadius + laser.size.width / 2 {
+                    // レーザー衝突エフェクト（オプション）
+                    if isSoundEnabled {
+                        soundManager.playSound(name: "laser_hit")
+                    }
+                    
                     // レーザーを削除
                     if i < lasers.count {
                         lasers.remove(at: i)
                     }
+                    
+                    // 発射前のボールに当たった場合のログ（デバッグ用）
+                    if !ball.isMoving {
+                        print("発射前のボールにレーザーが衝突しました")
+                    }
+                    
                     break
                 }
             }
@@ -1527,21 +1547,16 @@ class GameState: ObservableObject {
     
     // スターコンボを発動するメソッド
     func activateStarCombo(withColor color: Color) {
+        // すでにコンボ処理中の場合はスキップ（安定性重視）
+        if showStarComboEffect {
+            print("⚠️ 前のコンボが処理中のため、新しいコンボはスキップされました")
+            return
+        }
+        
         // 同じ色のブロックを消滅予定にする
         starComboEffectColor = color
         showStarComboEffect = true
-        starComboEffectTimer = 1.0 // 短縮して処理を高速化
-        
-        // 同じ色のブロックを検索
-        var targetBlocks: [Int] = []
-        for i in 0..<blocks.count {
-            if blocks[i].color == color && !blocks[i].isAnimating && blocks[i].removeAfter == nil {
-                targetBlocks.append(i)
-            }
-        }
-        
-        // バッチ処理の準備（全てのブロックを処理するが視覚的には分割）
-        prepareBlockBatches(targetIndices: targetBlocks)
+        starComboEffectTimer = safeBatchInterval // 安全な間隔
         
         // 連続コンボカウントを増加
         starComboChainCount += 1
@@ -1558,70 +1573,89 @@ class GameState: ObservableObject {
             }
         }
         
-        print("スターコンボ発動！連続コンボ数: \(starComboChainCount)、対象ブロック数: \(targetBlocks.count)")
-        
-        // 最初のバッチを即時処理
-        processNextBatch()
-    }
-    
-    // スターコンボのブロックをバッチに分割する処理
-    private func prepareBlockBatches(targetIndices: [Int]) {
-        // バッチ管理配列をクリア
-        pendingComboTargets.removeAll(keepingCapacity: true)
-        currentBatchIndex = 0
-        
-        // 全てのターゲットブロックをバッチに分割
-        var remainingIndices = targetIndices
-        while !remainingIndices.isEmpty {
-            let batchSize = min(remainingIndices.count, maxVisibleBatchSize)
-            var batchBlockIds: [UUID] = []
-            
-            // スコアを先に加算して、すべてのブロックに対して報酬を与える
-            score += batchSize * comboBlockScore
-            
-            // バッチ内のブロックを処理
-            for _ in 0..<batchSize {
-                let blockIndex = remainingIndices.removeFirst()
-                let block = blocks[blockIndex]
-                batchBlockIds.append(block.id)
-                
-                // ブロックをアニメーション状態に設定
-                var animatingBlock = block
-                animatingBlock.isAnimating = true
-                animatingBlock.isStarComboTarget = true
-                animatingBlock.removeAfter = Date().timeIntervalSince1970 + 0.7
-                blocks[blockIndex] = animatingBlock
+        // 同じ色のブロックを検索して保存
+        pendingComboBlocks.removeAll(keepingCapacity: true)
+        for i in 0..<blocks.count {
+            if blocks[i].color == color && !blocks[i].isAnimating && blocks[i].removeAfter == nil {
+                pendingComboBlocks.append(i)
             }
-            
-            // このバッチをキューに追加
-            pendingComboTargets.append(batchBlockIds)
         }
         
-        print("スターコンボ: 全\(targetIndices.count)ブロックを\(pendingComboTargets.count)バッチに分割")
+        // 全てのブロックに対してスコアを加算（最終的に全て消えるので）
+        score += pendingComboBlocks.count * comboBlockScore
+        
+        print("スターコンボ発動！連続コンボ数: \(starComboChainCount)、対象ブロック数: \(pendingComboBlocks.count)")
+        
+        // 最初のバッチを処理
+        processNextComboBlockBatch()
     }
     
-    // 次のバッチを処理する
-    private func processNextBatch() {
-        guard currentBatchIndex < pendingComboTargets.count else {
-            // すべてのバッチ処理が完了
+    // 次のブロックバッチを処理する安全なメソッド
+    private func processNextComboBlockBatch() {
+        starComboTargetBlocks.removeAll(keepingCapacity: true) // GPUメモリを確実にクリア
+        
+        // 処理するブロックがなければ終了
+        if pendingComboBlocks.isEmpty {
+            showStarComboEffect = false
+            starComboEffectTimer = nil
             return
         }
         
-        // 現在のバッチを取得
-        let currentBatch = pendingComboTargets[currentBatchIndex]
-        starComboTargetBlocks = currentBatch // 視覚効果用の配列を更新
+        // 安全に処理できるブロック数を決定
+        let batchSize = min(pendingComboBlocks.count, safeVisibleBatchSize)
         
-        print("バッチ処理: \(currentBatchIndex + 1)/\(pendingComboTargets.count) (計\(currentBatch.count)ブロック)")
+        // スターコンボの効果音を再生
+        if isSoundEnabled && batchSize > 0 {
+            soundManager.playSound(name: "star_combo")
+        }
         
-        // 次のバッチへ
-        currentBatchIndex += 1
+        // バッチを処理
+        for _ in 0..<batchSize {
+            guard !pendingComboBlocks.isEmpty else { break }
+            
+            let blockIndex = pendingComboBlocks.removeFirst()
+            
+            // インデックスが有効範囲内かチェック
+            guard blockIndex < blocks.count else { continue }
+            
+            var block = blocks[blockIndex]
+            // すでにアニメーション中または削除予定のブロックはスキップ
+            if block.isAnimating || block.removeAfter != nil {
+                continue
+            }
+            
+            // 通常のブロック破壊と同じエフェクトを適用
+            
+            // 1. ブロックをアニメーション状態に設定
+            block.isAnimating = true
+            block.isStarComboTarget = true
+            block.removeAfter = Date().timeIntervalSince1970 + 0.7
+            
+            // 2. レーザーを発射（通常のブロック破壊と同様）
+            createLaser(at: block.position, color: block.color)
+            
+            // 3. スターコンボの特別エフェクト（ヒットエフェクト）
+            // 通常のヒットエフェクトよりも少し華やかに
+            let randomOffset = CGFloat.random(in: -5...5)
+            createLaser(at: CGPoint(x: block.position.x + randomOffset, 
+                                    y: block.position.y + randomOffset), 
+                       color: starComboEffectColor)
+            
+            // ブロック更新を適用
+            blocks[blockIndex] = block
+            
+            // 視覚効果用の配列に追加（厳格に制限）
+            starComboTargetBlocks.append(block.id)
+        }
         
-        // まだバッチが残っている場合は、タイマーを設定して次のバッチを処理
-        if currentBatchIndex < pendingComboTargets.count {
-            starComboEffectTimer = batchProcessingInterval
+        // 次のバッチのタイマーを設定
+        if !pendingComboBlocks.isEmpty {
+            starComboEffectTimer = 0.25 // バッチ間隔を少し短くしてスムーズに
+            print("コンボ処理中: 残り \(pendingComboBlocks.count) ブロック")
         } else {
-            // 最後のバッチの場合は、エフェクト表示を少し長めに
-            starComboEffectTimer = 0.5
+            // 処理完了
+            starComboEffectTimer = 0.5 // 最後のバッチは少し長めに表示
+            print("コンボ処理完了")
         }
     }
     

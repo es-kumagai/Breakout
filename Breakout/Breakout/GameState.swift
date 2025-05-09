@@ -79,6 +79,14 @@ class GameState: ObservableObject {
     // ブロック生成カウントダウン
     @Published var timeUntilNextBlocks: Double = GameState.blockReplenishInterval
     
+    // 全てのボールが落ちた時のメッセージ表示用
+    @Published var showAllBallsLostMessage: Bool = false
+    @Published var allBallsLostMessageTimer: Double? = nil
+    
+    // レーザーがパドルに当たった時のメッセージ表示用
+    @Published var showLaserHitMessage: Bool = false
+    @Published var laserHitMessageTimer: Double? = nil
+    
     // メモリ効率化のためにSet型を使用
     private var cancellables = Set<AnyCancellable>()
     private var timer: AnyCancellable?
@@ -186,10 +194,17 @@ class GameState: ObservableObject {
         paddle = Paddle()
         resetBalls()
         resetBlocks()
+        
+        // レーザーを全て削除
+        lasers.removeAll(keepingCapacity: true)
+        
         startGameLoop()
     }
     
     func resetBalls() {
+        // パドルヒットフラグをリセット
+        paddleWasHit = false
+        
         // ボールの配列をクリア - キャパシティ指定でメモリ効率化
         balls.removeAll(keepingCapacity: true)
         
@@ -392,6 +407,62 @@ class GameState: ObservableObject {
             }
         }
         
+        // 全てのボールが落ちた時のメッセージタイマーを更新
+        if let timer = allBallsLostMessageTimer {
+            let newTimer = timer - deltaTime
+            if newTimer <= 0 {
+                // タイマー終了、ゲームを再開
+                allBallsLostMessageTimer = nil
+                showAllBallsLostMessage = false
+                isGameFrozen = false
+                
+                // 全てのレーザーを削除
+                lasers.removeAll(keepingCapacity: true)
+                
+                // パドルヒットフラグをリセット
+                paddleWasHit = false
+                
+                // ボールをリセットして再開
+                resetBalls()
+                isGameStarted = false
+            } else {
+                allBallsLostMessageTimer = newTimer
+            }
+        }
+        
+        // レーザー衝突メッセージタイマーを更新
+        if let timer = laserHitMessageTimer {
+            let newTimer = timer - deltaTime
+            if newTimer <= 0 {
+                // タイマー終了、メッセージを非表示にする
+                laserHitMessageTimer = nil
+                showLaserHitMessage = false
+                
+                // ゲームオーバーの場合は処理を変更
+                if lives <= 0 || isGameOver {
+                    // ゲームオーバー確定
+                    isGameOver = true
+                    isGameFrozen = false
+                    lasers.removeAll() // ゲームオーバー時にすべてのレーザーを削除
+                    print("レーザーがパドルに衝突し、ゲームオーバーになりました。")
+                } else {
+                    // ライフが残っている場合
+                    isGameFrozen = false
+                    
+                    // パドルヒットフラグをリセット
+                    paddleWasHit = false
+                    
+                    // ゲームを再開
+                    resetBalls()
+                    lasers.removeAll() // 全てのレーザーを削除
+                    isGameStarted = false
+                    print("レーザーがパドルに衝突しました。残りライフ: \(lives)")
+                }
+            } else {
+                laserHitMessageTimer = newTimer
+            }
+        }
+        
         // 画面フラッシュエフェクトタイマーの更新
         if let timer = screenFlashTimer {
             let newTimer = timer - deltaTime
@@ -414,14 +485,34 @@ class GameState: ObservableObject {
                 // エフェクト表示終了
                 paddleHitEffectTimer = nil
                 showPaddleHitEffect = false
-                isGameFrozen = false // ゲームフリーズ状態を解除
+                
+                // ライフがなくなった場合、確実にゲームオーバーにする
+                if lives <= 0 {
+                    isGameOver = true
+                    isGameFrozen = false
+                    print("ライフがなくなりました。ゲームオーバー")
+                    
+                    // エフェクトフラグをリセット
+                    paddleWasHit = false
+                    showLaserHitMessage = false
+                    laserHitMessageTimer = nil
+                    
+                    // 全てのレーザーを削除
+                    lasers.removeAll(keepingCapacity: true)
+                    return
+                }
+                
+                // レーザー衝突メッセージを表示中の場合はゲームフリーズ状態を維持
+                if !showLaserHitMessage {
+                    isGameFrozen = false // ゲームフリーズ状態を解除
+                }
                 
                 // エフェクト表示終了後、パドルヒット処理を実行
-                if paddleWasHit {
+                if paddleWasHit && !showLaserHitMessage {
                     paddleWasHit = false // フラグをリセット
                     
-                    // ライフを減らす
-                    lives -= 1
+                    // ライフを減らす - すでにcheckLaserCollisionsで減らされているので不要
+                    // lives -= 1
                     
                     // ゲームオーバーまたは再開
                     if lives > 0 {
@@ -909,7 +1000,7 @@ class GameState: ObservableObject {
                 
                 // ボールが落下した場合
                 
-                // 他のボールがまだ動いているかをチェック（修正）
+                // 他のボールがまだ動いているかをチェック
                 let otherActiveBalls = balls.indices.filter { idx in
                     idx != i && balls[idx].isMoving
                 }.count > 0
@@ -929,23 +1020,37 @@ class GameState: ObservableObject {
                     
                     balls[i] = updatedBall
                 } else {
-                    // 最後のボールが落ちた場合
-                    balls[i].isMoving = false
-                    balls[i].position.y = 2000 // 画面外に移動
-                    
-                    // 残像履歴をクリア
-                    balls[i].positionHistory.removeAll(keepingCapacity: true)
-                    
-                    // すべてのボールが無効になった場合
+                    // 全てのボールが落ちた場合、ライフを減らしてメッセージを表示
                     lives -= 1
-                    if lives > 0 {
-                        resetBalls() // ここでブロック生成カウントもリセットされる
-                        lasers.removeAll() // すべてのレーザーを削除
-                        isGameStarted = false
-                    } else {
+                    if lives <= 0 {
+                        // ライフが0になったらゲームオーバー
                         isGameOver = true
-                        lasers.removeAll() // ゲームオーバー時にすべてのレーザーを削除
+                        print("全てのボールが落下し、ライフがなくなりました。ゲームオーバー")
+                    } else {
+                        // ライフが残っている場合は一時停止してメッセージを表示
+                        isGameFrozen = true
+                        showAllBallsLostMessage = true
+                        allBallsLostMessageTimer = 3.0 // 3秒間メッセージを表示
+                        
+                        // 画面フラッシュエフェクト（警告として赤色）
+                        showScreenFlash = true
+                        screenFlashColor = .red
+                        screenFlashTimer = 0.3
+                        screenFlashOpacity = 0.5
+                        
+                        print("全てのボールが落下しました。残りライフ: \(lives)")
                     }
+                }
+                
+                if balls[i].isMoving {
+                    // コンボをリセット（パドルに触れるまでコンボはリセット）
+                    starComboChainCount = 0
+                    if balls[i].shape == .star {
+                        balls[i].comboCount = 0
+                    }
+                    
+                    // サウンド再生
+                    soundManager.playSound(name: "ball_lost")
                 }
             }
         }
@@ -1170,14 +1275,35 @@ class GameState: ObservableObject {
     
     func restartGame() {
         isGameOver = false
-        lives = 3
+        lives = initialLives
         score = 0
         level = 1
+        
+        // すべてのエフェクトフラグをリセット
+        isGameFrozen = false
+        showScreenFlash = false
+        screenFlashTimer = nil
+        showPaddleHitEffect = false
+        paddleHitEffectTimer = nil
+        showLaserHitMessage = false
+        laserHitMessageTimer = nil
+        showAllBallsLostMessage = false
+        allBallsLostMessageTimer = nil
+        showLevelUpMessage = false
+        levelUpMessageTimer = nil
+        paddleWasHit = false
+        
         setupGame()
         soundManager.playSound(name: "level_up")
     }
     
     func startGame() {
+        // レーザーを全て削除
+        lasers.removeAll(keepingCapacity: true)
+        
+        // パドルヒットフラグをリセット
+        paddleWasHit = false
+        
         isGameStarted = true
         startBalls()
     }
@@ -1416,6 +1542,9 @@ class GameState: ObservableObject {
         lives += 1
         print("レベルアップボーナス: ライフが1追加されました。現在のライフ: \(lives)")
         
+        // 全てのレーザーを削除
+        lasers.removeAll(keepingCapacity: true)
+        
         resetBalls()
         resetBlocks()
         isGameStarted = false
@@ -1500,6 +1629,35 @@ class GameState: ObservableObject {
                laser.position.x + laser.size.width / 2 >= paddle.position.x - paddle.size.width / 2 &&
                laser.position.x - laser.size.width / 2 <= paddle.position.x + paddle.size.width / 2 {
                 
+                // ライフを減らす
+                lives -= 1
+                
+                // ライフがなくなった場合はゲームオーバー処理
+                if lives <= 0 {
+                    // ゲームオーバーフラグを設定
+                    isGameOver = true
+                    isGameFrozen = false // ゲームオーバー時はフリーズ解除
+                    
+                    // エフェクト表示を短くして、確実に終了するように
+                    showScreenFlash = false
+                    screenFlashTimer = 0.3
+                    screenFlashColor = .red
+                    screenFlashOpacity = 0.7
+                    
+                    // 衝突エフェクトフラグはリセット（画面フラッシュのみ表示）
+                    showPaddleHitEffect = false
+                    paddleHitEffectTimer = nil
+                    showLaserHitMessage = false
+                    laserHitMessageTimer = nil
+                    
+                    // 全てのレーザーを削除
+                    lasers.removeAll()
+                    
+                    print("レーザーの衝突でライフが0になり、ゲームオーバーになりました")
+                    return // ゲームオーバー時はここで終了
+                }
+                
+                // ライフが残っている場合は通常の衝突処理
                 // パドル衝突エフェクト表示
                 showPaddleHitEffect = true
                 paddleHitEffectTimer = 0.6 // 0.6秒間表示
@@ -1512,6 +1670,10 @@ class GameState: ObservableObject {
                 screenFlashTimer = 0.3 // 0.3秒間表示
                 screenFlashColor = laser.color // レーザーの色をフラッシュに使用
                 screenFlashOpacity = 0.7 // 初期不透明度
+                
+                // レーザー衝突メッセージを表示
+                showLaserHitMessage = true
+                laserHitMessageTimer = 3.0 // 3秒間メッセージを表示
                 
                 // 全てのレーザーを削除
                 lasers.removeAll()

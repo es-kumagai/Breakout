@@ -74,7 +74,7 @@ struct GameView: View {
         .focusable()
         // キーボードショートカットの強化
         .onKeyPress(.space) { 
-            if gameState.isGameFrozen { return .ignored }
+            if gameState.isGameFrozen && !gameState.isGameOver { return .ignored }
             
             if gameState.isGameOver {
                 // スペースキーでのリスタート機能
@@ -177,6 +177,20 @@ struct GameContentView: View {
                     PaddleHitEffectView()
                         .drawingGroup()
                         .zIndex(80)
+                }
+                
+                // 全てのボールが落ちた時のメッセージ
+                if gameState.showAllBallsLostMessage {
+                    AllBallsLostMessageView()
+                        .transition(.opacity)
+                        .zIndex(85)
+                }
+                
+                // レーザー衝突メッセージ
+                if gameState.showLaserHitMessage {
+                    LaserHitMessageView()
+                        .transition(.opacity)
+                        .zIndex(85)
                 }
                 
                 // ゲーム開始メッセージ
@@ -1095,6 +1109,102 @@ struct StarEffectView: View {
             withAnimation(Animation.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
                 scale = 1.3
             }
+        }
+    }
+}
+
+// 全てのボールが落ちた時のメッセージ表示ビュー
+struct AllBallsLostMessageView: View {
+    @EnvironmentObject private var gameState: GameState
+    
+    var body: some View {
+        if gameState.showAllBallsLostMessage {
+            ZStack {
+                // 半透明の背景
+                Color.black.opacity(0.6)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                
+                VStack(spacing: 20) {
+                    Text("全てのボールが落ちました！")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.red)
+                        .padding(.bottom, 10)
+                    
+                    Text("残りライフ: \(gameState.lives)")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                    
+                    Text("ボールが再配置されます...")
+                        .font(.body)
+                        .foregroundColor(.yellow)
+                        .padding(.top, 10)
+                }
+                .padding(30)
+                .background(
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color.black.opacity(0.8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 15)
+                                .stroke(Color.red, lineWidth: 2)
+                        )
+                )
+                .shadow(color: .red.opacity(0.5), radius: 10)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .drawingGroup()
+        }
+    }
+}
+
+// レーザー衝突メッセージ表示ビュー
+struct LaserHitMessageView: View {
+    @EnvironmentObject private var gameState: GameState
+    
+    var body: some View {
+        if gameState.showLaserHitMessage {
+            ZStack {
+                // 半透明の背景
+                Color.black.opacity(0.6)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                
+                VStack(spacing: 20) {
+                    Text("レーザーに衝突しました！")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.red)
+                        .padding(.bottom, 10)
+                    
+                    Text("残りライフ: \(gameState.lives)")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                    
+                    if gameState.lives > 0 {
+                        Text("ボールが再配置されます...")
+                            .font(.body)
+                            .foregroundColor(.yellow)
+                            .padding(.top, 10)
+                    } else {
+                        Text("ゲームオーバー！")
+                            .font(.body)
+                            .foregroundColor(.red)
+                            .fontWeight(.bold)
+                            .padding(.top, 10)
+                    }
+                }
+                .padding(30)
+                .background(
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color.black.opacity(0.8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 15)
+                                .stroke(Color.red, lineWidth: 2)
+                        )
+                )
+                .shadow(color: .red.opacity(0.5), radius: 10)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .drawingGroup()
         }
     }
 }

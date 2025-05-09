@@ -233,6 +233,9 @@ class GameState: ObservableObject {
         // パドルヒットフラグをリセット
         paddleWasHit = false
         
+        // パドルの幅を元のサイズに戻す
+        paddle.size.width = paddle.originalWidth
+        
         // ボールの配列をクリア - キャパシティ指定でメモリ効率化
         balls.removeAll(keepingCapacity: true)
         
@@ -1075,6 +1078,14 @@ class GameState: ObservableObject {
                     starComboChainCount = 0 // 連続コンボもリセット
                 }
                 
+                // 楕円形ボールの場合、パドルの長さを元に戻す
+                if balls[i].shape == .oval {
+                    if paddle.size.width < paddle.originalWidth {
+                        paddle.size.width = paddle.originalWidth
+                        print("楕円形ボールが画面外に出たため、パドルのサイズを元に戻しました: \(paddle.size.width)")
+                    }
+                }
+                
                 // ボールが落下した場合
                 
                 // 他のボールがまだ動いているかをチェック
@@ -1284,6 +1295,15 @@ class GameState: ObservableObject {
                     balls[ballIndex].growthFactor += 0.5 // 半径を0.5px増やす（直径で1px増加）
                 }
                 
+                // 楕円形ボールの場合、パドルの幅を1px小さくする
+                if balls[ballIndex].shape == .oval {
+                    // パドルが元のサイズの半分より大きい場合のみ縮小する
+                    if paddle.size.width > paddle.originalWidth / 2 {
+                        paddle.size.width -= 1
+                        print("パドルのサイズを縮小: \(paddle.size.width)")
+                    }
+                }
+                
                 // スターコンボ処理（星型ボールの場合）
                 if balls[ballIndex].shape == .star {
                     // カウントを増やす
@@ -1355,6 +1375,9 @@ class GameState: ObservableObject {
         lives = initialLives
         score = 0
         level = 1
+        
+        // パドルのサイズを元に戻す
+        paddle.size.width = paddle.originalWidth
         
         // すべてのエフェクトフラグをリセット
         isGameFrozen = false
@@ -1655,6 +1678,9 @@ class GameState: ObservableObject {
         // レベルアップボーナスとしてライフを1追加
         lives += 1
         print("レベルアップボーナス: ライフが1追加されました。現在のライフ: \(lives)")
+        
+        // パドルの幅を元のサイズに戻す
+        paddle.size.width = paddle.originalWidth
         
         // 全てのレーザーを削除
         lasers.removeAll(keepingCapacity: true)
@@ -2109,7 +2135,8 @@ enum BallShape {
 // ゲーム要素の構造体
 struct Paddle {
     var position: CGPoint = CGPoint(x: GameState.frameWidth / 2, y: GameState.frameHeight - 30)
-    let size: CGSize = CGSize(width: 100, height: 15)
+    var size: CGSize = CGSize(width: 100, height: 15) // 可変にする
+    let originalWidth: CGFloat = 100 // 元のサイズを保持する定数
     let color: Color = .white
 }
 

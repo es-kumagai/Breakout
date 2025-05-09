@@ -11,8 +11,8 @@ struct BreakoutApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .frame(minWidth: 800, minHeight: 600)
-                .frame(maxWidth: 800, maxHeight: 600)
+                .frame(minWidth: GameState.screenWidth, minHeight: GameState.screenHeight)
+                .frame(maxWidth: GameState.screenWidth, maxHeight: GameState.screenHeight)
                 .navigationTitle("ブレイクアウト")
                 .background(Color.black)
                 // 起動時のキーボードフォーカス設定

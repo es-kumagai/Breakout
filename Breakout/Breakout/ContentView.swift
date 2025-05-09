@@ -20,8 +20,9 @@ struct ContentView: View {
             VStack {
                 GameView()
                     .environmentObject(gameState)
+                    .padding(GameState.frameMargin) // GameViewの周囲に20ポイントの余白を追加
             }
-            .frame(width: 800, height: 600)
+            .frame(width: GameState.screenWidth, height: GameState.screenHeight) // サイズを増やして余白分を確保
             .background(Color.black.opacity(0.7))
             .cornerRadius(12)
             .overlay(

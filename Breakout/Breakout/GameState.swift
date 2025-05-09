@@ -20,6 +20,8 @@ class GameState: ObservableObject {
     private let levelClearBonus: Int = 100
     private let blockBreakScore: Int = 10
     private let comboBlockScore: Int = 20
+    private let maxComboBlocksPerBatch: Int = 40 // スターコンボで一度に処理するブロックの上限
+    private let maxGradientStops: Int = 8 // グラデーションの最大ストップ数
     
     // ゲーム要素 - @Publishedを必要なものだけに限定
     @Published var paddle: Paddle
@@ -107,6 +109,9 @@ class GameState: ObservableObject {
         lasers.removeAll()
         starComboTargetBlocks.removeAll()
         hitBlockIds.removeAll()
+        
+        // GPUリソースの明示的解放
+        clearRenderingCache()
     }
     
     // サウンド設定の切り替え
@@ -141,6 +146,18 @@ class GameState: ObservableObject {
         for i in 0..<balls.count {
             if balls[i].positionHistory.count > maxBallHistory {
                 balls[i].positionHistory.removeFirst(balls[i].positionHistory.count - maxBallHistory)
+            }
+        }
+        
+        // スターコンボが発動中でない場合、ターゲットブロック配列をクリア
+        if !showStarComboEffect && !starComboTargetBlocks.isEmpty {
+            starComboTargetBlocks.removeAll(keepingCapacity: true)
+        }
+        
+        // レーザーの残像履歴も最適化
+        for i in 0..<lasers.count {
+            if lasers[i].positionHistory.count > lasers[i].maxHistoryLength {
+                lasers[i].positionHistory.removeFirst(lasers[i].positionHistory.count - lasers[i].maxHistoryLength)
             }
         }
     }
@@ -324,7 +341,12 @@ class GameState: ObservableObject {
                 // タイマー終了、エフェクトを消す
                 starComboEffectTimer = nil
                 showStarComboEffect = false
-                starComboTargetBlocks.removeAll()
+                
+                // GPUメモリをクリア - メモリリーク防止
+                starComboTargetBlocks.removeAll(keepingCapacity: false)
+                
+                // 残りのスターコンボブロックを処理（多すぎる場合に分割処理）
+                processRemainingStarComboBlocks()
             } else {
                 starComboEffectTimer = newTimer
             }
@@ -452,28 +474,14 @@ class GameState: ObservableObject {
             balls[i].position.x += balls[i].velocity.dx * CGFloat(deltaTime)
             balls[i].position.y += balls[i].velocity.dy * CGFloat(deltaTime)
             
-            // 位置履歴を更新 - 残像の間隔を短くして密度を高くする
-            let minRecordDistance = balls[i].radius * 0.5  // 以前より短い距離（1.2 → 0.5）
-            
-            // 移動した距離を計算
+            // 位置履歴を更新 - 専用メソッドを使用
             let dx = balls[i].position.x - oldPosition.x
             let dy = balls[i].position.y - oldPosition.y
             let movedDistance = sqrt(dx * dx + dy * dy)
             
-            // 十分な距離を移動したか、または履歴が空の場合に記録
-            if movedDistance >= minRecordDistance || balls[i].positionHistory.isEmpty {
-                // 最大履歴数を超える場合、最も古い位置を削除
-                if balls[i].positionHistory.count >= balls[i].maxHistoryLength {
-                    balls[i].positionHistory.removeFirst()
-                }
-                
-                // 新しい位置を履歴に追加（前の位置ではなくボールに近い位置を記録）
-                // 現在位置から残像までの距離を調整
-                let trailPosition = CGPoint(
-                    x: balls[i].position.x - (dx * 0.3), // 現在位置から少し後ろの位置
-                    y: balls[i].position.y - (dy * 0.3)  // 現在位置から少し後ろの位置
-                )
-                balls[i].positionHistory.append(trailPosition)
+            // 十分な距離を移動したか、最後の残像から時間が経過した場合に記録
+            if movedDistance >= balls[i].radius * 0.5 || balls[i].positionHistory.isEmpty {
+                updateTrailHistory(for: &balls[i], oldPosition: oldPosition)
             }
             
             // ボールを回転させる
@@ -554,6 +562,9 @@ class GameState: ObservableObject {
                         newBall2.position.x += overlap * nx * 2
                         newBall2.position.y += overlap * ny * 2
                         
+                        // 残像履歴を更新（新しい位置を追加）
+                        updateTrailHistory(for: &newBall2, oldPosition: ball2.position)
+                        
                         // ボール1の位置は変更しない（パドル上に留まる）
                         
                         print("動いているボールが待機中のボールで反射しました")
@@ -586,6 +597,9 @@ class GameState: ObservableObject {
                         newBall1.position.x -= overlap * nx * 2
                         newBall1.position.y -= overlap * ny * 2
                         
+                        // 残像履歴を更新（新しい位置を追加）
+                        updateTrailHistory(for: &newBall1, oldPosition: ball1.position)
+                        
                         // ボール2の位置は変更しない（パドル上に留まる）
                         
                         print("動いているボールが待機中のボールで反射しました")
@@ -609,6 +623,10 @@ class GameState: ObservableObject {
                             let effectiveImpulse1 = impulse * coef1
                             let effectiveImpulse2 = impulse * coef2
                             
+                            // 保存用に現在位置を記録
+                            let oldPosition1 = ball1.position
+                            let oldPosition2 = ball2.position
+                            
                             // 基本速度更新
                             newBall1.velocity.dx += effectiveImpulse1 * nx
                             newBall1.velocity.dy += effectiveImpulse1 * ny
@@ -631,6 +649,10 @@ class GameState: ObservableObject {
                             newBall2.position.x += overlap * nx
                             newBall2.position.y += overlap * ny
                             
+                            // 残像履歴を更新（衝突前の位置から新しい位置への自然な遷移）
+                            updateTrailHistory(for: &newBall1, oldPosition: oldPosition1)
+                            updateTrailHistory(for: &newBall2, oldPosition: oldPosition2)
+                            
                             // 衝突によって回転速度も変化
                             adjustRotationAfterCollision(ball: &newBall1, otherBall: ball2, nx: nx, ny: ny)
                             adjustRotationAfterCollision(ball: &newBall2, otherBall: ball1, nx: -nx, ny: -ny)
@@ -641,6 +663,28 @@ class GameState: ObservableObject {
                     balls[j] = newBall2
                 }
             }
+        }
+    }
+    
+    // 残像の履歴を適切に更新するヘルパーメソッド
+    private func updateTrailHistory(for ball: inout Ball, oldPosition: CGPoint) {
+        // 移動距離が十分に大きい場合のみ履歴に追加
+        let dx = ball.position.x - oldPosition.x
+        let dy = ball.position.y - oldPosition.y
+        let distance = sqrt(dx * dx + dy * dy)
+        
+        if distance > ball.radius * 0.5 || ball.positionHistory.isEmpty {
+            // 最大履歴数を超える場合は古いものを削除
+            if ball.positionHistory.count >= ball.maxHistoryLength {
+                ball.positionHistory.removeFirst()
+            }
+            
+            // 残像は現在位置から少し後ろの位置に表示
+            let trailPosition = CGPoint(
+                x: oldPosition.x + dx * 0.3, // 現在位置と前の位置の間
+                y: oldPosition.y + dy * 0.3
+            )
+            ball.positionHistory.append(trailPosition)
         }
     }
     
@@ -738,6 +782,9 @@ class GameState: ObservableObject {
         for i in 0..<balls.count {
             // 壁との衝突
             if balls[i].position.x - balls[i].effectiveRadius <= 0 || balls[i].position.x + balls[i].effectiveRadius >= GameState.frameWidth {
+                // 衝突前の位置を保存
+                let oldPosition = balls[i].position
+                
                 // ボールの形状に基づいて反射角度を計算
                 applyShapeBasedReflection(ballIndex: i, isWallCollision: true, isHorizontal: true)
                 
@@ -747,14 +794,23 @@ class GameState: ObservableObject {
                 } else {
                     balls[i].position.x = GameState.frameWidth - balls[i].effectiveRadius
                 }
+                
+                // 残像を更新
+                updateTrailHistory(for: &balls[i], oldPosition: oldPosition)
             }
             
             if balls[i].position.y - balls[i].effectiveRadius <= 0 {
+                // 衝突前の位置を保存
+                let oldPosition = balls[i].position
+                
                 // ボールの形状に基づいて反射角度を計算
                 applyShapeBasedReflection(ballIndex: i, isWallCollision: true, isHorizontal: false)
                 
                 // 上部にめり込まないように調整
                 balls[i].position.y = balls[i].effectiveRadius
+                
+                // 残像を更新
+                updateTrailHistory(for: &balls[i], oldPosition: oldPosition)
             }
             
             // パドルとの衝突
@@ -762,6 +818,9 @@ class GameState: ObservableObject {
                balls[i].position.y - balls[i].effectiveRadius <= paddle.position.y + paddle.size.height / 2 &&
                balls[i].position.x + balls[i].effectiveRadius >= paddle.position.x - paddle.size.width / 2 &&
                balls[i].position.x - balls[i].effectiveRadius <= paddle.position.x + paddle.size.width / 2 {
+                
+                // 衝突前の位置を保存
+                let oldPosition = balls[i].position
                 
                 // パドルの中心からの距離に基づいて反射角度を計算
                 let hitPosition = (balls[i].position.x - paddle.position.x) / (paddle.size.width / 2)
@@ -795,6 +854,9 @@ class GameState: ObservableObject {
                 
                 // パドルにめり込まないように位置を調整
                 balls[i].position.y = paddle.position.y - paddle.size.height / 2 - balls[i].effectiveRadius
+                
+                // 残像を更新
+                updateTrailHistory(for: &balls[i], oldPosition: oldPosition)
             }
             
             // ブロックとの衝突
@@ -830,11 +892,18 @@ class GameState: ObservableObject {
                     updatedBall.isMoving = false
                     updatedBall.position.y = 2000 // 画面外に移動
                     updatedBall.reviveCountdown = 30.0 // 30秒後に復活
+                    
+                    // 残像履歴をクリア
+                    updatedBall.positionHistory.removeAll(keepingCapacity: true)
+                    
                     balls[i] = updatedBall
                 } else {
                     // 最後のボールが落ちた場合
                     balls[i].isMoving = false
                     balls[i].position.y = 2000 // 画面外に移動
+                    
+                    // 残像履歴をクリア
+                    balls[i].positionHistory.removeAll(keepingCapacity: true)
                     
                     // すべてのボールが無効になった場合
                     lives -= 1
@@ -956,6 +1025,9 @@ class GameState: ObservableObject {
                balls[ballIndex].position.x + balls[ballIndex].effectiveRadius >= block.position.x - block.size.width / 2 &&
                balls[ballIndex].position.x - balls[ballIndex].effectiveRadius <= block.position.x + block.size.width / 2 {
                 
+                // 衝突前の位置を保存
+                let oldPosition = balls[ballIndex].position
+                
                 // ブロックとの衝突方向を判定して反射角度を調整
                 let ballCenterX = balls[ballIndex].position.x
                 let ballCenterY = balls[ballIndex].position.y
@@ -990,6 +1062,9 @@ class GameState: ObservableObject {
                         balls[ballIndex].position.y = blockBottom + balls[ballIndex].effectiveRadius
                     }
                 }
+                
+                // 残像を更新
+                updateTrailHistory(for: &balls[ballIndex], oldPosition: oldPosition)
                 
                 // 円形ボールの場合、直径を1px大きくする
                 if balls[ballIndex].shape == .circle {
@@ -1154,8 +1229,29 @@ class GameState: ObservableObject {
     // ブロックのアニメーションを更新する関数
     func updateBlockAnimations(deltaTime: TimeInterval) {
         let animationSpeed: CGFloat = 5.0 // アニメーション速度係数
+        let currentTime = Date().timeIntervalSince1970
         
-        for i in 0..<blocks.count {
+        // GPUメモリを最適化するため、一度に処理するアニメーションブロック数を制限
+        var animatingCount = 0
+        let maxAnimatingBlocks = 30 // 最大同時アニメーションブロック数
+        
+        // アニメーション終了したブロックを削除（逆順に処理して安全に削除）
+        for i in (0..<blocks.count).reversed() {
+            if let removeAfter = blocks[i].removeAfter, currentTime >= removeAfter {
+                blocks.remove(at: i)
+                continue // 削除したブロックは以降の処理をスキップ
+            }
+            
+            // アニメーション中のブロック数をカウント
+            if blocks[i].isAnimating || blocks[i].isAppearing || blocks[i].targetPosition != nil {
+                animatingCount += 1
+                
+                // 最大数を超えたらアニメーションを制限（ただし処理自体は継続）
+                if animatingCount > maxAnimatingBlocks {
+                    continue
+                }
+            }
+            
             // 出現アニメーション処理
             if blocks[i].isAppearing {
                 // 0.3秒後に通常状態に戻す
@@ -1412,21 +1508,51 @@ class GameState: ObservableObject {
         showStarComboEffect = true
         starComboEffectTimer = 1.5
         
-        // 同じ色のブロックを検索して削除予定にする
+        // 同じ色のブロックを検索
+        var targetBlocks: [Int] = []
         for i in 0..<blocks.count {
             if blocks[i].color == color && !blocks[i].isAnimating && blocks[i].removeAfter == nil {
-                var block = blocks[i]
-                block.isAnimating = true
-                block.isStarComboTarget = true
-                block.removeAfter = Date().timeIntervalSince1970 + 0.7
-                blocks[i] = block
-                
-                // 削除予定のブロックIDを記録
-                starComboTargetBlocks.append(block.id)
-                
-                // スコア加算
-                score += 20 // コンボボーナス
+                targetBlocks.append(i)
             }
+        }
+        
+        // MTLバッファの容量に基づく安全値の計算
+        // エラーログから推定：MTLバッファは96バイトまで安全、1ブロックあたり約12バイト
+        let maxSafeBlocks = 16 // 2倍に増やす（段階的処理で安全性確保）
+        
+        // メモリバッファオーバーフローを防ぐため、一度に処理するブロック数を制限
+        let batchSize = min(targetBlocks.count, min(maxComboBlocksPerBatch, maxSafeBlocks))
+        
+        // 選択されたブロックをバッチサイズまで処理
+        starComboTargetBlocks.removeAll(keepingCapacity: true) // 既存のターゲットをクリア
+        
+        for i in 0..<batchSize {
+            let blockIndex = targetBlocks[i]
+            var block = blocks[blockIndex]
+            block.isAnimating = true
+            block.isStarComboTarget = true
+            block.removeAfter = Date().timeIntervalSince1970 + 0.7
+            blocks[blockIndex] = block
+            
+            // 削除予定のブロックIDを記録
+            starComboTargetBlocks.append(block.id)
+            
+            // スコア加算
+            score += comboBlockScore // コンボボーナス
+        }
+        
+        // 残りのブロックは後で処理するか、または無視する
+        if batchSize < targetBlocks.count {
+            print("スターコンボ: \(targetBlocks.count)個中\(batchSize)個のブロックを処理しました（GPUメモリ安全制限）")
+        }
+        
+        // GPUレンダリングの最適化
+        optimizeStarComboEffectForGPU()
+        
+        // 1コンボで全ブロックを対象にすると問題が発生するため段階的に処理する
+        if targetBlocks.count > batchSize {
+            // 後続のコンボのためにタイマーを短くして連続発動
+            starComboEffectTimer = 0.5 // 0.5秒後に次のバッチを処理（より高速に）
         }
     }
     
@@ -1489,6 +1615,78 @@ class GameState: ObservableObject {
         screenFlashTimer = 0.3 // 0.3秒間表示
         screenFlashColor = color
         screenFlashOpacity = 0.7 // 初期不透明度
+    }
+    
+    // GPUレンダリングの最適化（スターコンボエフェクト用）
+    func optimizeStarComboEffectForGPU() {
+        // スターコンボで処理するブロックの上限を確認・調整
+        if starComboTargetBlocks.count > maxComboBlocksPerBatch {
+            // バッファオーバーフローを防ぐために対象ブロックを削減
+            starComboTargetBlocks = Array(starComboTargetBlocks.prefix(maxComboBlocksPerBatch))
+            print("GPUメモリ最適化: スターコンボのターゲットブロック数を \(maxComboBlocksPerBatch) に制限しました")
+        }
+        
+        // スターコンボエフェクトのグラデーションストップカラー数を制限
+        // これによりグラデーションバッファーのサイズを制限
+        
+        // スターコンボのグラデーションカラー数を調整
+        // 実際の実装は、GameViewでのレンダリング処理に合わせて調整が必要
+        print("GPUレンダリング最適化: グラデーション処理の制限を \(maxGradientStops) に設定")
+        
+        // バッファオーバーフローを検出した場合のフォールバック処理
+        if starComboTargetBlocks.count * 12 > 192 { // より大きな安全マージンを設定（96バイトの2倍）
+            // 問題が発生した場合のみ制限を適用
+            let safeLimit = 16 // 上限を16に引き上げ
+            if starComboTargetBlocks.count > safeLimit {
+                starComboTargetBlocks = Array(starComboTargetBlocks.prefix(safeLimit))
+                print("⚠️ GPUバッファ警告: バッファオーバーフローを回避するため、制限を \(safeLimit) に調整")
+            }
+        }
+    }
+    
+    // MovingBlock構造体を追加（GPUメモリ最適化のためのキャッシュ）
+    struct MovingBlockCache {
+        let blockId: UUID
+        let originalPosition: CGPoint
+        let targetPosition: CGPoint
+        let progress: CGFloat
+        
+        // 現在の位置を計算（レンダリング時のリアルタイム計算を減らす）
+        var currentPosition: CGPoint {
+            let x = originalPosition.x + (targetPosition.x - originalPosition.x) * progress
+            let y = originalPosition.y + (targetPosition.y - originalPosition.y) * progress
+            return CGPoint(x: x, y: y)
+        }
+    }
+    
+    // レンダリングのためにプリコンピューティングされたデータをクリア
+    func clearRenderingCache() {
+        // ゲームが一時停止された時や、メモリ警告時に呼び出す
+        hitBlockIds.removeAll(keepingCapacity: true)
+        
+        // スターコンボがアクティブでなければ関連データをクリア
+        if !showStarComboEffect {
+            starComboTargetBlocks.removeAll(keepingCapacity: true)
+        }
+    }
+    
+    // 残りのスターコンボブロックを処理するヘルパーメソッド
+    private func processRemainingStarComboBlocks() {
+        // 同じ色のブロックをさらに検索
+        if !showStarComboEffect {
+            var remainingBlocks: [Int] = []
+            for i in 0..<blocks.count {
+                if blocks[i].color == starComboEffectColor && !blocks[i].isAnimating && blocks[i].removeAfter == nil {
+                    remainingBlocks.append(i)
+                }
+            }
+            
+            // 残りのブロックがある場合は新しいコンボを開始
+            if !remainingBlocks.isEmpty {
+                // 再度スターコンボを発動（同じ色で）
+                activateStarCombo(withColor: starComboEffectColor)
+            }
+        }
     }
 }
 

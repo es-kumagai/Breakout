@@ -20,8 +20,8 @@ class GameState: ObservableObject {
     private let levelClearBonus: Int = 100
     private let blockBreakScore: Int = 10
     private let comboBlockScore: Int = 20
-    private let maxComboBlocksPerBatch: Int = 40 // スターコンボで一度に処理するブロックの上限
-    private let maxGradientStops: Int = 8 // グラデーションの最大ストップ数
+    private let maxComboBlocksPerBatch: Int = 20 // スターコンボで一度に処理するブロックの上限（40から20に減少）
+    private let maxGradientStops: Int = 6 // グラデーションの最大ストップ数（8から6に減少）
     
     // ゲーム要素 - @Publishedを必要なものだけに限定
     @Published var paddle: Paddle
@@ -44,6 +44,7 @@ class GameState: ObservableObject {
     @Published var starComboEffectTimer: Double? = nil // スターコンボエフェクトタイマー
     @Published var starComboEffectColor: Color = .yellow // スターコンボエフェクトの色
     @Published var starComboTargetBlocks: [UUID] = [] // コンボで消滅予定のブロックID
+    @Published var starComboChainCount: Int = 0 // 連続コンボ回数を追跡
     
     // レーザー衝突エフェクト
     @Published var showPaddleHitEffect: Bool = false
@@ -160,6 +161,11 @@ class GameState: ObservableObject {
                 lasers[i].positionHistory.removeFirst(lasers[i].positionHistory.count - lasers[i].maxHistoryLength)
             }
         }
+        
+        // GPU処理時のバッファオーバーフロー防止のための追加チェック
+        if showStarComboEffect {
+            optimizeStarComboEffectForGPU()
+        }
     }
     
     func setupGame() {
@@ -173,6 +179,12 @@ class GameState: ObservableObject {
     func resetBalls() {
         // ボールの配列をクリア - キャパシティ指定でメモリ効率化
         balls.removeAll(keepingCapacity: true)
+        
+        // ブロック生成カウントダウンをリセット
+        timeUntilNextBlocks = GameState.blockReplenishInterval
+        
+        // 連続コンボカウントをリセット
+        starComboChainCount = 0
         
         // 3つのボールを追加（異なる形状）
         let shapes: [BallShape] = [.star, .circle, .oval]
@@ -832,11 +844,14 @@ class GameState: ObservableObject {
                     // 星型は鋭く反射（よりランダム性と鋭さを持つ）
                     angleModifier = 1.2
                     
-                    // スターコンボカウントをリセット
-                    if balls[i].comboCount > 0 {
-                        balls[i].comboCount = 0
-                        print("パドルに当たったため、スターコンボカウントをリセットしました")
-                    }
+                    // スターコンボ連続カウントをリセット
+                    starComboChainCount = 0
+                    
+                    // 個別のボールのcomboCountもリセット
+                    balls[i].comboCount = 0
+                    balls[i].lastHitBlockColor = nil
+                    print("星型ボールがパドルに当たったため、コンボカウントとチェインカウントをリセットしました")
+                    
                 case .circle:
                     // 円形は通常の反射
                     angleModifier = 1.0
@@ -869,11 +884,12 @@ class GameState: ObservableObject {
                     continue
                 }
                 
-                // 星型ボールの場合、comboCountをリセット
-                if balls[i].shape == .star && balls[i].comboCount > 0 {
-                    print("ボールが画面外に出たため、スターコンボカウントをリセットしました")
+                // 星型ボールの場合、comboCountをリセットし、連続コンボもリセット
+                if balls[i].shape == .star {
+                    print("星型ボールが画面外に出たため、コンボカウントをリセットしました")
                     balls[i].comboCount = 0
                     balls[i].lastHitBlockColor = nil
+                    starComboChainCount = 0 // 連続コンボもリセット
                 }
                 
                 // ボールが落下した場合
@@ -908,7 +924,7 @@ class GameState: ObservableObject {
                     // すべてのボールが無効になった場合
                     lives -= 1
                     if lives > 0 {
-                        resetBalls()
+                        resetBalls() // ここでブロック生成カウントもリセットされる
                         lasers.removeAll() // すべてのレーザーを削除
                         isGameStarted = false
                     } else {
@@ -1073,7 +1089,7 @@ class GameState: ObservableObject {
                 
                 // スターコンボ処理（星型ボールの場合）
                 if balls[ballIndex].shape == .star {
-                    // カウントを増やす（パドルに当たった後という条件を削除）
+                    // カウントを増やす
                     balls[ballIndex].comboCount += 1
                     
                     // 衝突したブロックの色を記録
@@ -1083,10 +1099,12 @@ class GameState: ObservableObject {
                     if balls[ballIndex].comboCount >= GameState.requiredComboCount {
                         // スターコンボを発動
                         activateStarCombo(withColor: block.color)
-                        // コンボカウントをリセット
+                        // コンボカウントをリセット（連続コンボのため）
                         balls[ballIndex].comboCount = 0
-                        balls[ballIndex].lastHitBlockColor = nil
                     }
+                    
+                    // 現在のコンボ状況を表示
+                    print("星型ボールのコンボカウント: \(balls[ballIndex].comboCount)/\(GameState.requiredComboCount), 連続コンボ: \(starComboChainCount)")
                 }
                 
                 // ブロックをアニメーション状態に設定
@@ -1103,7 +1121,7 @@ class GameState: ObservableObject {
                 hitBlockIds.insert(block.id)
                 
                 // スコア加算
-                score += 10
+                score += blockBreakScore // 通常のブロック破壊スコア
                 
                 // レーザーを発射（ブロックの色を渡す）
                 createLaser(at: block.position, color: block.color)
@@ -1375,6 +1393,11 @@ class GameState: ObservableObject {
     // 次のレベルに進むメソッド
     func proceedToNextLevel() {
         level = nextLevel
+        
+        // レベルアップボーナスとしてライフを1追加
+        lives += 1
+        print("レベルアップボーナス: ライフが1追加されました。現在のライフ: \(lives)")
+        
         resetBalls()
         resetBlocks()
         isGameStarted = false
@@ -1516,12 +1539,11 @@ class GameState: ObservableObject {
             }
         }
         
-        // MTLバッファの容量に基づく安全値の計算
-        // エラーログから推定：MTLバッファは96バイトまで安全、1ブロックあたり約12バイト
-        let maxSafeBlocks = 16 // 2倍に増やす（段階的処理で安全性確保）
+        // バッファオーバーフロー対策 - より小さなバッチサイズを使用
+        let safeBlockCount = 6 // GPUメモリ制限に基づく安全なブロック数
         
         // メモリバッファオーバーフローを防ぐため、一度に処理するブロック数を制限
-        let batchSize = min(targetBlocks.count, min(maxComboBlocksPerBatch, maxSafeBlocks))
+        let batchSize = min(targetBlocks.count, safeBlockCount)
         
         // 選択されたブロックをバッチサイズまで処理
         starComboTargetBlocks.removeAll(keepingCapacity: true) // 既存のターゲットをクリア
@@ -1543,17 +1565,34 @@ class GameState: ObservableObject {
         
         // 残りのブロックは後で処理するか、または無視する
         if batchSize < targetBlocks.count {
-            print("スターコンボ: \(targetBlocks.count)個中\(batchSize)個のブロックを処理しました（GPUメモリ安全制限）")
+            print("スターコンボ: \(targetBlocks.count)個中\(batchSize)個のブロックを処理しました（GPUメモリ制限）")
         }
         
-        // GPUレンダリングの最適化
+        // GPUレンダリングの最適化（追加のチェック）
         optimizeStarComboEffectForGPU()
         
-        // 1コンボで全ブロックを対象にすると問題が発生するため段階的に処理する
+        // バッチ処理を細分化 - より小さなバッチで頻繁に処理
         if targetBlocks.count > batchSize {
             // 後続のコンボのためにタイマーを短くして連続発動
-            starComboEffectTimer = 0.5 // 0.5秒後に次のバッチを処理（より高速に）
+            starComboEffectTimer = 0.4 // より速く次のバッチを処理
         }
+        
+        // 連続コンボカウントを増加
+        starComboChainCount += 1
+        
+        // 連続コンボが2回以上の場合、ライフを1追加
+        if starComboChainCount >= 2 {
+            lives += 1
+            print("連続スターコンボ達成！ライフが1追加されました。現在のライフ: \(lives)")
+            
+            // 2回目のコンボでライフが増えた後は、さらに3回ごとにライフを増やす
+            if starComboChainCount >= 5 && (starComboChainCount - 2) % 3 == 0 {
+                lives += 1
+                print("高度な連続コンボ達成！さらにライフが1追加されました。現在のライフ: \(lives)")
+            }
+        }
+        
+        print("スターコンボ発動！連続コンボ数: \(starComboChainCount)")
     }
     
     // レーザーとパドルの衝突処理
@@ -1619,6 +1658,10 @@ class GameState: ObservableObject {
     
     // GPUレンダリングの最適化（スターコンボエフェクト用）
     func optimizeStarComboEffectForGPU() {
+        // MTLバッファサイズの分析
+        // エラーログ: 65536バイトのバッファに100バイトのスペースが残っているが、108バイト必要
+        // 1ブロックあたり約12-14バイト必要と推定
+        
         // スターコンボで処理するブロックの上限を確認・調整
         if starComboTargetBlocks.count > maxComboBlocksPerBatch {
             // バッファオーバーフローを防ぐために対象ブロックを削減
@@ -1626,21 +1669,19 @@ class GameState: ObservableObject {
             print("GPUメモリ最適化: スターコンボのターゲットブロック数を \(maxComboBlocksPerBatch) に制限しました")
         }
         
-        // スターコンボエフェクトのグラデーションストップカラー数を制限
-        // これによりグラデーションバッファーのサイズを制限
-        
         // スターコンボのグラデーションカラー数を調整
-        // 実際の実装は、GameViewでのレンダリング処理に合わせて調整が必要
         print("GPUレンダリング最適化: グラデーション処理の制限を \(maxGradientStops) に設定")
         
-        // バッファオーバーフローを検出した場合のフォールバック処理
-        if starComboTargetBlocks.count * 12 > 192 { // より大きな安全マージンを設定（96バイトの2倍）
-            // 問題が発生した場合のみ制限を適用
-            let safeLimit = 16 // 上限を16に引き上げ
-            if starComboTargetBlocks.count > safeLimit {
-                starComboTargetBlocks = Array(starComboTargetBlocks.prefix(safeLimit))
-                print("⚠️ GPUバッファ警告: バッファオーバーフローを回避するため、制限を \(safeLimit) に調整")
-            }
+        // GPUバッファオーバーフロー対策 - 安全な上限を設定
+        // エラーからの分析: 100バイト以下に保つ必要がある
+        let maxSafeBytes = 96 // MTLバッファの安全上限（100バイトより余裕を持たせる）
+        let bytesPerBlock = 14 // 1ブロックあたりの推定バイト数（安全マージンを含む）
+        let safeBlockCount = maxSafeBytes / bytesPerBlock // 約6ブロック
+        
+        // より厳しい制限を適用
+        if starComboTargetBlocks.count > safeBlockCount {
+            starComboTargetBlocks = Array(starComboTargetBlocks.prefix(safeBlockCount))
+            print("⚠️ GPUバッファ安全対策: ターゲットブロック数を \(safeBlockCount) に制限しました")
         }
     }
     

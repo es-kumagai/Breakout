@@ -1143,6 +1143,9 @@ class GameState: ObservableObject {
             showLevelUpMessage = true
             levelUpMessageTimer = 3.0 // 3秒間表示
             
+            // 画面上のレーザーをすべて消去
+            lasers.removeAll(keepingCapacity: true)
+            
             // ゲームは一時停止状態に
             isPaused = true
         }

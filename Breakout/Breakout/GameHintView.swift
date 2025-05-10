@@ -7,7 +7,7 @@ struct GameHintView: View {
     var body: some View {
         VStack(spacing: 10) {
             Text("攻略のヒント")
-                .font(.headline)
+                .font(.title3)
                 .fontWeight(.bold)
                 .foregroundColor(.yellow)
                 .padding(.horizontal, 15)
@@ -23,14 +23,14 @@ struct GameHintView: View {
                 .padding(.bottom, 8)
             
             Text(hint.caption)
-                .font(.body)
+                .font(.headline)
+                .fontWeight(.bold)
                 .foregroundColor(.white)
                 .padding(.horizontal, 20)
                 .multilineTextAlignment(.center)
-                .bold()
             Text(hint.content)
                 .font(.body)
-                .foregroundColor(.white)
+                .foregroundColor(Color(white: 0.8))
                 .padding(.horizontal, 20)
                 .multilineTextAlignment(.center)
         }

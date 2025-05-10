@@ -138,4 +138,45 @@ macOS向けのクラシックなブロック崩しゲームの実装です。
 * パフォーマンス目標：60FPS以上（推奨環境）
 * メモリ使用：約100MB以下
 
+# 変更履歴・実装上の注意点（2024年6月）
+
+## 1. ゲームオーバー・失敗時のヒント表示
+- ゲームオーバーや全ボール落下・レーザー衝突時に攻略ヒントが必ず表示されます。
+- ヒントは `GameHints.plist` から `Codable` 構造体として読み込み、`PropertyListDecoder` でデコードします。
+- ヒントは連続して同じものが表示されないようにランダム選出時に直前のヒントと重複しない工夫をしています。
+
+## 2. ヒント管理の実装
+- ヒントは `GameHint` 型で管理し、`GameState` 内で配列として保持します。
+- ヒントデータは `GameHints.plist` で管理し、2件以上のヒントが必須です。
+- 不正なデータや1件のみの場合はアプリ起動時にクラッシュします。
+
+## 3. 1型1ファイル分割方針
+- すべてのView/Shape/構造体/enumは「1型1ファイル」とし、`GameView.swift` などの巨大ファイルから厳密に分割しています。
+- 入れ子型は `extension` で分離、`private`/`fileprivate` 型は同一ファイル内に残す方針です。
+- 元の型定義直前のコメントや実装内コメントも忠実に移植しています。
+
+## 4. View/Shape/構造体/enumの分割・コメント移植
+- すべての型について、元の `GameView.swift` のソース・コメント・UI・ロジックが完全一致するように分割ファイルを上書きしています。
+- コメントやUIの細部も忠実に反映しています。
+
+## 5. AllBallsLostMessageView/LaserHitMessageViewの進行仕様
+- これらのメッセージは「クリックのみで進行」します。
+- 一定時間経過後に自動で進むタイマー機能は完全に廃止されています。
+- GameStateの該当タイマー変数・ロジックも物理的に削除済みです。
+
+## 6. GameStateのタイマー自動進行ロジック廃止
+- `allBallsLostMessageTimer` および `laserHitMessageTimer` など、メッセージ自動消去用タイマーのプロパティ・ロジック・初期化・参照・コメントをすべて削除しました。
+- 進行は必ずユーザーのクリック操作のみで行われます。
+
+## 7. macOSでウィンドウを閉じたときのアプリ終了
+- `AppDelegate.swift` を新規作成し、`applicationShouldTerminateAfterLastWindowClosed` を実装。
+- `BreakoutApp.swift` で `@NSApplicationDelegateAdaptor(AppDelegate.self)` を登録。
+- これによりウィンドウを閉じるとアプリが即座に終了します。
+
+## 8. その他設計・実装上の注意点
+- 設計方針・実装・コメント・UI・ロジックすべてを元実装と完全一致させることを徹底しています。
+- SwiftUIの最新API・macOS 14以降の仕様に準拠しています。
+- 主要な型（GameHint, Paddle, Ball, Block, Laser, BallShape, DummySoundManager等）はすべて個別ファイルで管理。
+- すべてのView/Shape/構造体/enumの分割・コメント移植・追加仕様対応を段階的に実施。
+
 

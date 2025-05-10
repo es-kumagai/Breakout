@@ -5,6 +5,9 @@ import AVFoundation
 
 @main
 struct BreakoutApp: App {
+    // AppDelegateを登録
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     // 最初のキーボードフォーカスを設定
     @State private var isInitialFocusSet = false
     

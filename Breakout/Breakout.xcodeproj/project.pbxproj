@@ -51,6 +51,7 @@
 		B1FB20FB2DCF2B1C004E78B8 /* BallReviveCountdownsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D02DCF2B1C004E78B8 /* BallReviveCountdownsView.swift */; };
 		B1FB20FC2DCF2B1C004E78B8 /* BallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D42DCF2B1C004E78B8 /* BallView.swift */; };
 		B1FB20FE2DCF2B57004E78B8 /* SparkEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20FD2DCF2B57004E78B8 /* SparkEffectView.swift */; };
+		B1FB21002DCF33DE004E78B8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20FF2DCF33DE004E78B8 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -100,6 +101,7 @@
 		B1FB20E42DCF2B1C004E78B8 /* StartMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartMessageView.swift; sourceTree = "<group>"; };
 		B1FB20E52DCF2B1C004E78B8 /* TrailShapeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrailShapeView.swift; sourceTree = "<group>"; };
 		B1FB20FD2DCF2B57004E78B8 /* SparkEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkEffectView.swift; sourceTree = "<group>"; };
+		B1FB20FF2DCF33DE004E78B8 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +134,7 @@
 		1A1A1A1A1A1A1A1A1A1A1A21 /* Breakout */ = {
 			isa = PBXGroup;
 			children = (
+				B1FB20FF2DCF33DE004E78B8 /* AppDelegate.swift */,
 				B1FB20FD2DCF2B57004E78B8 /* SparkEffectView.swift */,
 				B1FB20CF2DCF2B1C004E78B8 /* AllBallsLostMessageView.swift */,
 				B1FB20D02DCF2B1C004E78B8 /* BallReviveCountdownsView.swift */,
@@ -286,6 +289,7 @@
 				B1FB20EF2DCF2B1C004E78B8 /* StarComboEffectView.swift in Sources */,
 				B1FB20F02DCF2B1C004E78B8 /* GameOverView.swift in Sources */,
 				B1FB20F12DCF2B1C004E78B8 /* PaddleHitEffectView.swift in Sources */,
+				B1FB21002DCF33DE004E78B8 /* AppDelegate.swift in Sources */,
 				B1FB20F22DCF2B1C004E78B8 /* ScreenFlashView.swift in Sources */,
 				B1FB20F32DCF2B1C004E78B8 /* BallShapeView.swift in Sources */,
 				B1FB20F42DCF2B1C004E78B8 /* StarEffectView.swift in Sources */,

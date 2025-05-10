@@ -40,6 +40,10 @@ struct AllBallsLostMessageView: View {
                 .shadow(color: .red.opacity(0.5), radius: 10)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onTapGesture {
+                // 画面クリックで次に進む（ゲーム再開やリトライ等）
+                gameState.handleAllBallsLostMessageTap()
+            }
         }
     }
 } 

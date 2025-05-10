@@ -14,18 +14,22 @@ struct GameContentView: View {
                 BlockView(block: block)
             }
             
-            // パドル - 常に動くのでキャッシュは不要
-            PaddleView(paddle: gameState.paddle)
+            // パドル - ゲームオーバー時または各種メッセージ表示時は非表示
+            if !gameState.isGameOver && !gameState.showLaserHitMessage && !gameState.showAllBallsLostMessage {
+                PaddleView(paddle: gameState.paddle)
+            }
             
             // レーザー - 動きが速いのでキャッシュ不要
             ForEach(0..<gameState.lasers.count, id: \.self) { index in
                 LaserView(laser: gameState.lasers[index])
             }
             
-            // ボール - 複数ボールをまとめてGPU処理
-            ZStack {
-                ForEach(0..<gameState.balls.count, id: \.self) { index in
-                    BallView(ball: gameState.balls[index])
+            // ボール - ゲームオーバー時または各種メッセージ表示時は非表示
+            if !gameState.isGameOver && !gameState.showLaserHitMessage && !gameState.showAllBallsLostMessage {
+                ZStack {
+                    ForEach(0..<gameState.balls.count, id: \.self) { index in
+                        BallView(ball: gameState.balls[index])
+                    }
                 }
             }
             

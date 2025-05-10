@@ -72,13 +72,9 @@ struct GameView: View {
         .focusable()
         // キーボードショートカットの強化
         .onKeyPress(.space) {
-            if gameState.isGameFrozen && !gameState.isGameOver { return .ignored }
+            if gameState.isGameFrozen || gameState.isGameOver { return .ignored }
             
-            if gameState.isGameOver {
-                // スペースキーでのリスタート機能
-                gameState.restartGame()
-                return .handled
-            } else if !gameState.isGameStarted {
+            if !gameState.isGameStarted {
                 // ゲーム開始
                 gameState.startGame()
                 return .handled
@@ -105,7 +101,7 @@ struct GameView: View {
         // アクセシビリティ改善
         .accessibilityElement(children: .contain)
         .accessibilityLabel("ブレイクアウトゲーム")
-        .accessibilityHint("スペースキーでゲーム開始、左右の矢印キーでパドルを移動")
+        .accessibilityHint("スペースキーでゲーム開始またはボール発射、左右の矢印キーでパドルを移動")
     }
 }
 

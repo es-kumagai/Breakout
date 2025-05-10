@@ -27,6 +27,11 @@ struct AllBallsLostMessageView: View {
                         GameHintView(hint: hint)
                             .padding(.top, 12)
                     }
+                    Text("画面クリックでリスタート")
+                        .foregroundColor(.yellow)
+                        .font(.system(size: 18))
+                        .padding(.top, 30)
+                        .padding(.bottom, 10)
                 }
                 .padding(30)
                 .background(

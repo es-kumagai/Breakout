@@ -11,6 +11,16 @@ struct BallReviveCountdownView: View {
         return Int(countdown)
     }
     
+    // 安全にボールの形状を取得するヘルパープロパティ
+    private var ballShape: BallShape {
+        // インデックスの範囲チェック
+        guard ballIndex >= 0 && ballIndex < gameState.balls.count else {
+            // デフォルトの形状を返す
+            return .circle
+        }
+        return gameState.balls[ballIndex].shape
+    }
+    
     var body: some View {
         HStack {
             Spacer()
@@ -25,8 +35,8 @@ struct BallReviveCountdownView: View {
                 // 残り5秒間は点滅
                     .opacity(countdownSeconds <= 5 ? (countdownSeconds % 2 == 0 ? 1.0 : 0.4) : 1.0)
                 
-                // ボールの形状アイコン
-                BallShapeIconView(shape: gameState.balls[ballIndex].shape)
+                // ボールの形状アイコン - 安全に取得した形状を使用
+                BallShapeIconView(shape: ballShape)
                     .padding(.top, 2)
             }
             .padding(8)

@@ -2251,6 +2251,9 @@ class GameState: ObservableObject {
         isGameOver = true
         timer?.cancel()
         isGameStarted = false
+        
+        // ゲームオーバー時にレーザーを消去（ボールは削除しない）
+        lasers.removeAll(keepingCapacity: true)
 
         // ゲームオーバーサウンドを再生
         soundManager.playSound(name: "game_over")

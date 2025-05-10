@@ -200,5 +200,17 @@
         <key>内容</key>
         <string>楕円ボールが画面外に落ちるとパドルが元の長さに戻るから注意だ。</string>
     </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>空中ボール衝突で軌道変更！</string>
+        <key>内容</key>
+        <string>空中でボールをぶつけると、狙ったブロックに軌道を変えられるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>空中衝突に要注意！</string>
+        <key>内容</key>
+        <string>ボール同士が空中でぶつかると、急に軌道が変わるから目を離すな。</string>
+    </dict>
 </array>
 </plist> 

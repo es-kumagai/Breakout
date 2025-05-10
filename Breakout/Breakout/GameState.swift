@@ -8,7 +8,7 @@ class GameState: ObservableObject {
     // ゲーム設定 - static letでメモリ効率化
     static let frameWidth: CGFloat = 800
     static let frameHeight: CGFloat = 600
-    static let frameMargin: CGFloat = 120
+    static let frameMargin: CGFloat = 60
     static let fps: Double = 60
     static let blockReplenishInterval: TimeInterval = 10.0
     static let requiredComboCount: Int = 7 // 必要なコンボカウント

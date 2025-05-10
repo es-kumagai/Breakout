@@ -126,10 +126,17 @@ class GameState: ObservableObject {
     private let safeVisibleBatchSize: Int = 4 // 安全のため、一度に処理するブロック数を制限
     private let safeBatchInterval: Double = 0.3 // バッチ間の十分な間隔（GPUバッファのクリア時間確保）
     
+    // ゲームの攻略ヒント関連のプロパティ
+    @Published var currentHint: GameHint? = nil
+    private var gameHints: [GameHint] = []
+    
     init() {
         paddle = Paddle()
         balls = [] // 空の配列で初期化
         blocks = []
+        
+        // ヒントデータを読み込む
+        loadGameHints()
         
         setupGame()
     }
@@ -528,6 +535,9 @@ class GameState: ObservableObject {
                     isGameFrozen = false
                     lasers.removeAll() // ゲームオーバー時にすべてのレーザーを削除
                     print("レーザーがパドルに衝突し、ゲームオーバーになりました。")
+                    
+                    // ゲームオーバー処理を実行（ヒント表示）
+                    gameOver()
                 } else {
                     // ライフが残っている場合
                     isGameFrozen = false
@@ -606,6 +616,9 @@ class GameState: ObservableObject {
                         isGameOver = true
                         lasers.removeAll() // ゲームオーバー時にすべてのレーザーを削除
                         print("レーザーがパドルに衝突し、ゲームオーバーになりました。")
+                        
+                        // ゲームオーバー処理を実行（ヒント表示）
+                        gameOver()
                     }
                 }
             } else {
@@ -1114,12 +1127,18 @@ class GameState: ObservableObject {
                         // ライフが0になったらゲームオーバー
                         isGameOver = true
                         print("全てのボールが落下し、ライフがなくなりました。ゲームオーバー")
+                        
+                        // ゲームオーバー処理を実行（ヒント表示）
+                        gameOver()
                     } else {
                         // ライフが残っている場合は一時停止してメッセージを表示
                         isGameFrozen = true
                         showAllBallsLostMessage = true
                         allBallsLostMessageTimer = 3.0 // 3秒間メッセージを表示
                         
+                        // ランダムなヒントを設定
+                        currentHint = getRandomHint()
+
                         // 画面フラッシュエフェクト（警告として赤色）
                         showScreenFlash = true
                         screenFlashColor = .red
@@ -1393,6 +1412,9 @@ class GameState: ObservableObject {
         levelUpMessageTimer = nil
         paddleWasHit = false
         
+        // ヒントをクリア
+        currentHint = nil
+        
         setupGame()
         soundManager.playSound(name: "level_up")
     }
@@ -1429,6 +1451,9 @@ class GameState: ObservableObject {
                 // 画面下端を超えたらゲームオーバー
                 if targetY + blocks[i].size.height / 2 >= GameState.frameHeight - 30 {
                     isGameOver = true
+                    
+                    // ゲームオーバー処理を実行（ヒント表示）
+                    gameOver()
                     break
                 }
             }
@@ -1787,6 +1812,9 @@ class GameState: ObservableObject {
                     isGameOver = true
                     isGameFrozen = false // ゲームオーバー時はフリーズ解除
                     
+                    // ランダムなヒントを設定
+                    currentHint = getRandomHint()
+
                     // エフェクト表示を短くして、確実に終了するように
                     showScreenFlash = false
                     screenFlashTimer = 0.3
@@ -1801,6 +1829,9 @@ class GameState: ObservableObject {
                     
                     // 全てのレーザーを削除
                     lasers.removeAll()
+                    
+                    // ゲームオーバー処理を実行
+                    gameOver()
                     
                     print("レーザーの衝突でライフが0になり、ゲームオーバーになりました")
                     return // ゲームオーバー時はここで終了
@@ -1824,6 +1855,9 @@ class GameState: ObservableObject {
                 showLaserHitMessage = true
                 laserHitMessageTimer = 3.0 // 3秒間メッセージを表示
                 
+                // ランダムなヒントを設定
+                currentHint = getRandomHint()
+
                 // 全てのレーザーを削除
                 lasers.removeAll()
                 return // これ以上の処理は不要なので終了
@@ -2037,7 +2071,7 @@ class GameState: ObservableObject {
         isGameOver = true
         timer?.cancel()
         isGameStarted = false
-        
+
         // ゲームオーバーサウンドを再生
         soundManager.playSound(name: "game_over")
     }
@@ -2123,6 +2157,36 @@ class GameState: ObservableObject {
             print("複数のボールを時間差発射します: 残り\(pendingBallIndices.count)個")
         }
     }
+    
+    // ヒントデータをplistから読み込む
+    private func loadGameHints() {
+        guard let url = Bundle.main.url(forResource: "GameHints", withExtension: "plist") else {
+            fatalError("攻略ヒントのplistファイルが見つかりません")
+        }
+        
+        do {
+            let data = try Data(contentsOf: url)
+            let decoder = PropertyListDecoder()
+            let hints = try decoder.decode([GameHint].self, from: data)
+            gameHints = hints
+            print("攻略ヒントを\(hints.count)件読み込みました")
+            
+            guard hints.count > 0 else {
+                fatalError("攻略ヒントは１つ以上必要です。")
+            }
+            
+            guard !hints.contains(where: \.isIllformed) else {
+                fatalError("不正な攻略ヒントデータがあります。")
+            }
+        } catch {
+            fatalError("攻略ヒントの読み込みに失敗しました: \(error)")
+        }
+    }
+    
+    // ランダムなヒントを取得する
+    private func getRandomHint() -> GameHint {
+        gameHints.randomElement()!
+    }
 }
 
 // ボールの形状を表す列挙型
@@ -2201,5 +2265,24 @@ class DummySoundManager {
     
     func stopAllSounds() {
         // 実際には何もしない
+    }
+}
+
+// 攻略ヒントの構造体
+struct GameHint: Codable, Identifiable, Hashable {
+    let caption: String
+    let content: String
+    
+    enum CodingKeys: String, CodingKey {
+        case caption = "キャプション"
+        case content = "内容"
+    }
+
+    var id: Int {
+        hashValue
+    }
+    
+    var isIllformed: Bool {
+        caption.isEmpty || content.isEmpty
     }
 }

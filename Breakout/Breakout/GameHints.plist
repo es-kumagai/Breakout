@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+    <dict>
+        <key>キャプション</key>
+        <string>パドルの位置を予測しろ！</string>
+        <key>内容</key>
+        <string>ボールの落下位置を先読みすれば、効率よく受け止められるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>星型ボールでコンボを狙え！</string>
+        <key>内容</key>
+        <string>同じ色のブロックを7回連続で壊すと、一気に同じ色のブロックが消えるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>落ちたボールを復活させろ！</string>
+        <key>内容</key>
+        <string>30秒待てばボールは復活するから、残りのボールで頑張れるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>楕円ボールの角度に注意しろ！</string>
+        <key>内容</key>
+        <string>楕円の向きによって反射の強さが変わるから、狙ったブロックに当てられるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>円形ボールを育てろ！</string>
+        <key>内容</key>
+        <string>ブロックに当たるたびに少しずつ大きくなって、衝突判定も有利になるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>中央のボールを優先して使え！</string>
+        <key>内容</key>
+        <string>発射順序を考えることで、ゲームを有利に進められるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>同時に複数のボールを扱え！</string>
+        <key>内容</key>
+        <string>3つのボールをうまく使えば、スコアを効率よく稼げるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>パドルの端で跳ね返せ！</string>
+        <key>内容</key>
+        <string>パドルの端で受けると、鋭角に跳ね返してブロックを崩しやすくなるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>楕円ボールでパドルサイズに注意しろ！</string>
+        <key>内容</key>
+        <string>楕円ボールがブロックを崩すとパドルが小さくなるから、タイミングを見計らえ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>レーザーを避けろ！</string>
+        <key>内容</key>
+        <string>下に落ちてくるレーザーに当たるとライフが減るから、うまく避けるんだ。</string>
+    </dict>
+</array>
+</plist> 

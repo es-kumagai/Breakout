@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation  // GameStateのimportに必要
 
 struct GameView: View {
     @EnvironmentObject private var gameState: GameState
@@ -382,6 +383,51 @@ struct StartMessageView: View {
     }
 }
 
+// 攻略のヒント表示ビュー
+struct GameHintView: View {
+    let hint: GameHint
+    
+    var body: some View {
+        VStack(spacing: 10) {
+            Text("攻略のヒント")
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.yellow)
+                .padding(.horizontal, 15)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(Color.black.opacity(0.7))
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.yellow, lineWidth: 2)
+                        )
+                )
+                .padding(.bottom, 8)
+            
+            Text(hint.caption)
+                .font(.body)
+                .foregroundColor(.white)
+                .padding(.horizontal, 20)
+                .multilineTextAlignment(.center)
+                .bold()
+            Text(hint.content)
+                .font(.body)
+                .foregroundColor(.white)
+                .padding(.horizontal, 20)
+                .multilineTextAlignment(.center)
+        }
+        .allowsHitTesting(false) // マウスイベントを無視
+        .padding(.horizontal, 30)
+        .padding(.vertical, 15)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.black.opacity(0.5))
+        )
+        .padding(.bottom, 30)
+    }
+}
+
 // ゲームオーバー表示ビュー
 struct GameOverView: View {
     @EnvironmentObject private var gameState: GameState
@@ -407,7 +453,13 @@ struct GameOverView: View {
                     Text("最終スコア: \(gameState.score)")
                         .font(.title)
                         .foregroundColor(.white)
-                        .padding(.bottom, 30)
+                        .padding(.bottom, 20)
+                    
+                    // 攻略ヒントを表示
+                    if let hint = gameState.currentHint {
+                        GameHintView(hint: hint)
+                            .padding(.top, 12)
+                    }
                     
                     Text("画面クリックまたはスペースキーでリスタート")
                         .foregroundColor(.gray)
@@ -1117,10 +1169,11 @@ struct AllBallsLostMessageView: View {
                         .font(.title2)
                         .foregroundColor(.white)
                     
-                    Text("ボールが再配置されます...")
-                        .font(.body)
-                        .foregroundColor(.yellow)
-                        .padding(.top, 10)
+                    // 攻略ヒントを表示
+                    if let hint = gameState.currentHint {
+                        GameHintView(hint: hint)
+                            .padding(.top, 12)
+                    }
                 }
                 .padding(30)
                 .background(
@@ -1160,17 +1213,10 @@ struct LaserHitMessageView: View {
                         .font(.title2)
                         .foregroundColor(.white)
                     
-                    if gameState.lives > 0 {
-                        Text("ボールが再配置されます...")
-                            .font(.body)
-                            .foregroundColor(.yellow)
-                            .padding(.top, 10)
-                    } else {
-                        Text("ゲームオーバー！")
-                            .font(.body)
-                            .foregroundColor(.red)
-                            .fontWeight(.bold)
-                            .padding(.top, 10)
+                    // 攻略ヒントを表示
+                    if let hint = gameState.currentHint {
+                        GameHintView(hint: hint)
+                            .padding(.top, 12)
                     }
                 }
                 .padding(30)

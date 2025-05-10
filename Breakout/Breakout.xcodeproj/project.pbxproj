@@ -19,6 +19,7 @@
 		B15C26242DCDAE7D00E731C9 /* ball_launch.wav in Resources */ = {isa = PBXBuildFile; fileRef = B15C26152DCDAE7D00E731C9 /* ball_launch.wav */; };
 		B15C26252DCDAE7D00E731C9 /* block_break.wav in Resources */ = {isa = PBXBuildFile; fileRef = B15C26162DCDAE7D00E731C9 /* block_break.wav */; };
 		B15C26262DCDAE7D00E731C9 /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15C261E2DCDAE7D00E731C9 /* SoundManager.swift */; };
+		B1FB20C02DCF0DA3004E78B8 /* GameHints.plist in Resources */ = {isa = PBXBuildFile; fileRef = B1FB20BF2DCF0DA3004E78B8 /* GameHints.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +37,7 @@
 		B15C261B2DCDAE7D00E731C9 /* paddle_hit.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = paddle_hit.wav; sourceTree = "<group>"; };
 		B15C261E2DCDAE7D00E731C9 /* SoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManager.swift; sourceTree = "<group>"; };
 		B1FB20BE2DCF00A7004E78B8 /* Breakout.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Breakout.entitlements; sourceTree = "<group>"; };
+		B1FB20BF2DCF0DA3004E78B8 /* GameHints.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = GameHints.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -68,6 +70,7 @@
 		1A1A1A1A1A1A1A1A1A1A1A21 /* Breakout */ = {
 			isa = PBXGroup;
 			children = (
+				B1FB20BF2DCF0DA3004E78B8 /* GameHints.plist */,
 				B1FB20BE2DCF00A7004E78B8 /* Breakout.entitlements */,
 				B15C261D2DCDAE7D00E731C9 /* Resources */,
 				B15C261E2DCDAE7D00E731C9 /* SoundManager.swift */,
@@ -160,6 +163,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B15C261F2DCDAE7D00E731C9 /* level_up.wav in Resources */,
+				B1FB20C02DCF0DA3004E78B8 /* GameHints.plist in Resources */,
 				B15C26202DCDAE7D00E731C9 /* laser.wav in Resources */,
 				B15C26212DCDAE7D00E731C9 /* game_over.wav in Resources */,
 				B15C26222DCDAE7D00E731C9 /* paddle_hit.wav in Resources */,

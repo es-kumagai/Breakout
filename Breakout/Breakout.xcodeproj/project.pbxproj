@@ -20,6 +20,37 @@
 		B15C26252DCDAE7D00E731C9 /* block_break.wav in Resources */ = {isa = PBXBuildFile; fileRef = B15C26162DCDAE7D00E731C9 /* block_break.wav */; };
 		B15C26262DCDAE7D00E731C9 /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B15C261E2DCDAE7D00E731C9 /* SoundManager.swift */; };
 		B1FB20C02DCF0DA3004E78B8 /* GameHints.plist in Resources */ = {isa = PBXBuildFile; fileRef = B1FB20BF2DCF0DA3004E78B8 /* GameHints.plist */; };
+		B1FB20C82DCF1BA5004E78B8 /* Paddle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20C72DCF1BA5004E78B8 /* Paddle.swift */; };
+		B1FB20C92DCF1BA5004E78B8 /* Ball.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20C12DCF1BA5004E78B8 /* Ball.swift */; };
+		B1FB20CA2DCF1BA5004E78B8 /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20C32DCF1BA5004E78B8 /* Block.swift */; };
+		B1FB20CB2DCF1BA5004E78B8 /* Laser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20C62DCF1BA5004E78B8 /* Laser.swift */; };
+		B1FB20CC2DCF1BA5004E78B8 /* GameHint.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20C52DCF1BA5004E78B8 /* GameHint.swift */; };
+		B1FB20CD2DCF1BA5004E78B8 /* BallShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20C22DCF1BA5004E78B8 /* BallShape.swift */; };
+		B1FB20CE2DCF1BA5004E78B8 /* DummySoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20C42DCF1BA5004E78B8 /* DummySoundManager.swift */; };
+		B1FB20E62DCF2B1C004E78B8 /* GameHintView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D82DCF2B1C004E78B8 /* GameHintView.swift */; };
+		B1FB20E72DCF2B1C004E78B8 /* PaddleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20DF2DCF2B1C004E78B8 /* PaddleView.swift */; };
+		B1FB20E82DCF2B1C004E78B8 /* BallReviveCountdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D12DCF2B1C004E78B8 /* BallReviveCountdownView.swift */; };
+		B1FB20E92DCF2B1C004E78B8 /* BlockReplenishCountdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D52DCF2B1C004E78B8 /* BlockReplenishCountdownView.swift */; };
+		B1FB20EA2DCF2B1C004E78B8 /* LaserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20DC2DCF2B1C004E78B8 /* LaserView.swift */; };
+		B1FB20EB2DCF2B1C004E78B8 /* BallShapeIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D22DCF2B1C004E78B8 /* BallShapeIconView.swift */; };
+		B1FB20EC2DCF2B1C004E78B8 /* StartMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20E42DCF2B1C004E78B8 /* StartMessageView.swift */; };
+		B1FB20ED2DCF2B1C004E78B8 /* TrailShapeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20E52DCF2B1C004E78B8 /* TrailShapeView.swift */; };
+		B1FB20EE2DCF2B1C004E78B8 /* GameContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D72DCF2B1C004E78B8 /* GameContentView.swift */; };
+		B1FB20EF2DCF2B1C004E78B8 /* StarComboEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20E22DCF2B1C004E78B8 /* StarComboEffectView.swift */; };
+		B1FB20F02DCF2B1C004E78B8 /* GameOverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20DA2DCF2B1C004E78B8 /* GameOverView.swift */; };
+		B1FB20F12DCF2B1C004E78B8 /* PaddleHitEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20DE2DCF2B1C004E78B8 /* PaddleHitEffectView.swift */; };
+		B1FB20F22DCF2B1C004E78B8 /* ScreenFlashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20E02DCF2B1C004E78B8 /* ScreenFlashView.swift */; };
+		B1FB20F32DCF2B1C004E78B8 /* BallShapeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D32DCF2B1C004E78B8 /* BallShapeView.swift */; };
+		B1FB20F42DCF2B1C004E78B8 /* StarEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20E32DCF2B1C004E78B8 /* StarEffectView.swift */; };
+		B1FB20F52DCF2B1C004E78B8 /* BlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D62DCF2B1C004E78B8 /* BlockView.swift */; };
+		B1FB20F62DCF2B1C004E78B8 /* Star.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20E12DCF2B1C004E78B8 /* Star.swift */; };
+		B1FB20F72DCF2B1C004E78B8 /* GameInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D92DCF2B1C004E78B8 /* GameInfoView.swift */; };
+		B1FB20F82DCF2B1C004E78B8 /* LaserHitMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20DB2DCF2B1C004E78B8 /* LaserHitMessageView.swift */; };
+		B1FB20F92DCF2B1C004E78B8 /* LevelUpMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20DD2DCF2B1C004E78B8 /* LevelUpMessageView.swift */; };
+		B1FB20FA2DCF2B1C004E78B8 /* AllBallsLostMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20CF2DCF2B1C004E78B8 /* AllBallsLostMessageView.swift */; };
+		B1FB20FB2DCF2B1C004E78B8 /* BallReviveCountdownsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D02DCF2B1C004E78B8 /* BallReviveCountdownsView.swift */; };
+		B1FB20FC2DCF2B1C004E78B8 /* BallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20D42DCF2B1C004E78B8 /* BallView.swift */; };
+		B1FB20FE2DCF2B57004E78B8 /* SparkEffectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1FB20FD2DCF2B57004E78B8 /* SparkEffectView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +69,37 @@
 		B15C261E2DCDAE7D00E731C9 /* SoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManager.swift; sourceTree = "<group>"; };
 		B1FB20BE2DCF00A7004E78B8 /* Breakout.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Breakout.entitlements; sourceTree = "<group>"; };
 		B1FB20BF2DCF0DA3004E78B8 /* GameHints.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = GameHints.plist; sourceTree = "<group>"; };
+		B1FB20C12DCF1BA5004E78B8 /* Ball.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ball.swift; sourceTree = "<group>"; };
+		B1FB20C22DCF1BA5004E78B8 /* BallShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BallShape.swift; sourceTree = "<group>"; };
+		B1FB20C32DCF1BA5004E78B8 /* Block.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Block.swift; sourceTree = "<group>"; };
+		B1FB20C42DCF1BA5004E78B8 /* DummySoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DummySoundManager.swift; sourceTree = "<group>"; };
+		B1FB20C52DCF1BA5004E78B8 /* GameHint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameHint.swift; sourceTree = "<group>"; };
+		B1FB20C62DCF1BA5004E78B8 /* Laser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Laser.swift; sourceTree = "<group>"; };
+		B1FB20C72DCF1BA5004E78B8 /* Paddle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paddle.swift; sourceTree = "<group>"; };
+		B1FB20CF2DCF2B1C004E78B8 /* AllBallsLostMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllBallsLostMessageView.swift; sourceTree = "<group>"; };
+		B1FB20D02DCF2B1C004E78B8 /* BallReviveCountdownsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BallReviveCountdownsView.swift; sourceTree = "<group>"; };
+		B1FB20D12DCF2B1C004E78B8 /* BallReviveCountdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BallReviveCountdownView.swift; sourceTree = "<group>"; };
+		B1FB20D22DCF2B1C004E78B8 /* BallShapeIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BallShapeIconView.swift; sourceTree = "<group>"; };
+		B1FB20D32DCF2B1C004E78B8 /* BallShapeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BallShapeView.swift; sourceTree = "<group>"; };
+		B1FB20D42DCF2B1C004E78B8 /* BallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BallView.swift; sourceTree = "<group>"; };
+		B1FB20D52DCF2B1C004E78B8 /* BlockReplenishCountdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockReplenishCountdownView.swift; sourceTree = "<group>"; };
+		B1FB20D62DCF2B1C004E78B8 /* BlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockView.swift; sourceTree = "<group>"; };
+		B1FB20D72DCF2B1C004E78B8 /* GameContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameContentView.swift; sourceTree = "<group>"; };
+		B1FB20D82DCF2B1C004E78B8 /* GameHintView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameHintView.swift; sourceTree = "<group>"; };
+		B1FB20D92DCF2B1C004E78B8 /* GameInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameInfoView.swift; sourceTree = "<group>"; };
+		B1FB20DA2DCF2B1C004E78B8 /* GameOverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameOverView.swift; sourceTree = "<group>"; };
+		B1FB20DB2DCF2B1C004E78B8 /* LaserHitMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaserHitMessageView.swift; sourceTree = "<group>"; };
+		B1FB20DC2DCF2B1C004E78B8 /* LaserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaserView.swift; sourceTree = "<group>"; };
+		B1FB20DD2DCF2B1C004E78B8 /* LevelUpMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelUpMessageView.swift; sourceTree = "<group>"; };
+		B1FB20DE2DCF2B1C004E78B8 /* PaddleHitEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaddleHitEffectView.swift; sourceTree = "<group>"; };
+		B1FB20DF2DCF2B1C004E78B8 /* PaddleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaddleView.swift; sourceTree = "<group>"; };
+		B1FB20E02DCF2B1C004E78B8 /* ScreenFlashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFlashView.swift; sourceTree = "<group>"; };
+		B1FB20E12DCF2B1C004E78B8 /* Star.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Star.swift; sourceTree = "<group>"; };
+		B1FB20E22DCF2B1C004E78B8 /* StarComboEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarComboEffectView.swift; sourceTree = "<group>"; };
+		B1FB20E32DCF2B1C004E78B8 /* StarEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarEffectView.swift; sourceTree = "<group>"; };
+		B1FB20E42DCF2B1C004E78B8 /* StartMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartMessageView.swift; sourceTree = "<group>"; };
+		B1FB20E52DCF2B1C004E78B8 /* TrailShapeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrailShapeView.swift; sourceTree = "<group>"; };
+		B1FB20FD2DCF2B57004E78B8 /* SparkEffectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkEffectView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +132,37 @@
 		1A1A1A1A1A1A1A1A1A1A1A21 /* Breakout */ = {
 			isa = PBXGroup;
 			children = (
+				B1FB20FD2DCF2B57004E78B8 /* SparkEffectView.swift */,
+				B1FB20CF2DCF2B1C004E78B8 /* AllBallsLostMessageView.swift */,
+				B1FB20D02DCF2B1C004E78B8 /* BallReviveCountdownsView.swift */,
+				B1FB20D12DCF2B1C004E78B8 /* BallReviveCountdownView.swift */,
+				B1FB20D22DCF2B1C004E78B8 /* BallShapeIconView.swift */,
+				B1FB20D32DCF2B1C004E78B8 /* BallShapeView.swift */,
+				B1FB20D42DCF2B1C004E78B8 /* BallView.swift */,
+				B1FB20D52DCF2B1C004E78B8 /* BlockReplenishCountdownView.swift */,
+				B1FB20D62DCF2B1C004E78B8 /* BlockView.swift */,
+				B1FB20D72DCF2B1C004E78B8 /* GameContentView.swift */,
+				B1FB20D82DCF2B1C004E78B8 /* GameHintView.swift */,
+				B1FB20D92DCF2B1C004E78B8 /* GameInfoView.swift */,
+				B1FB20DA2DCF2B1C004E78B8 /* GameOverView.swift */,
+				B1FB20DB2DCF2B1C004E78B8 /* LaserHitMessageView.swift */,
+				B1FB20DC2DCF2B1C004E78B8 /* LaserView.swift */,
+				B1FB20DD2DCF2B1C004E78B8 /* LevelUpMessageView.swift */,
+				B1FB20DE2DCF2B1C004E78B8 /* PaddleHitEffectView.swift */,
+				B1FB20DF2DCF2B1C004E78B8 /* PaddleView.swift */,
+				B1FB20E02DCF2B1C004E78B8 /* ScreenFlashView.swift */,
+				B1FB20E12DCF2B1C004E78B8 /* Star.swift */,
+				B1FB20E22DCF2B1C004E78B8 /* StarComboEffectView.swift */,
+				B1FB20E32DCF2B1C004E78B8 /* StarEffectView.swift */,
+				B1FB20E42DCF2B1C004E78B8 /* StartMessageView.swift */,
+				B1FB20E52DCF2B1C004E78B8 /* TrailShapeView.swift */,
+				B1FB20C12DCF1BA5004E78B8 /* Ball.swift */,
+				B1FB20C22DCF1BA5004E78B8 /* BallShape.swift */,
+				B1FB20C32DCF1BA5004E78B8 /* Block.swift */,
+				B1FB20C42DCF1BA5004E78B8 /* DummySoundManager.swift */,
+				B1FB20C52DCF1BA5004E78B8 /* GameHint.swift */,
+				B1FB20C62DCF1BA5004E78B8 /* Laser.swift */,
+				B1FB20C72DCF1BA5004E78B8 /* Paddle.swift */,
 				B1FB20BF2DCF0DA3004E78B8 /* GameHints.plist */,
 				B1FB20BE2DCF00A7004E78B8 /* Breakout.entitlements */,
 				B15C261D2DCDAE7D00E731C9 /* Resources */,
@@ -180,9 +273,40 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B1FB20E62DCF2B1C004E78B8 /* GameHintView.swift in Sources */,
+				B1FB20FE2DCF2B57004E78B8 /* SparkEffectView.swift in Sources */,
+				B1FB20E72DCF2B1C004E78B8 /* PaddleView.swift in Sources */,
+				B1FB20E82DCF2B1C004E78B8 /* BallReviveCountdownView.swift in Sources */,
+				B1FB20E92DCF2B1C004E78B8 /* BlockReplenishCountdownView.swift in Sources */,
+				B1FB20EA2DCF2B1C004E78B8 /* LaserView.swift in Sources */,
+				B1FB20EB2DCF2B1C004E78B8 /* BallShapeIconView.swift in Sources */,
+				B1FB20EC2DCF2B1C004E78B8 /* StartMessageView.swift in Sources */,
+				B1FB20ED2DCF2B1C004E78B8 /* TrailShapeView.swift in Sources */,
+				B1FB20EE2DCF2B1C004E78B8 /* GameContentView.swift in Sources */,
+				B1FB20EF2DCF2B1C004E78B8 /* StarComboEffectView.swift in Sources */,
+				B1FB20F02DCF2B1C004E78B8 /* GameOverView.swift in Sources */,
+				B1FB20F12DCF2B1C004E78B8 /* PaddleHitEffectView.swift in Sources */,
+				B1FB20F22DCF2B1C004E78B8 /* ScreenFlashView.swift in Sources */,
+				B1FB20F32DCF2B1C004E78B8 /* BallShapeView.swift in Sources */,
+				B1FB20F42DCF2B1C004E78B8 /* StarEffectView.swift in Sources */,
+				B1FB20F52DCF2B1C004E78B8 /* BlockView.swift in Sources */,
+				B1FB20F62DCF2B1C004E78B8 /* Star.swift in Sources */,
+				B1FB20F72DCF2B1C004E78B8 /* GameInfoView.swift in Sources */,
+				B1FB20F82DCF2B1C004E78B8 /* LaserHitMessageView.swift in Sources */,
+				B1FB20F92DCF2B1C004E78B8 /* LevelUpMessageView.swift in Sources */,
+				B1FB20FA2DCF2B1C004E78B8 /* AllBallsLostMessageView.swift in Sources */,
+				B1FB20FB2DCF2B1C004E78B8 /* BallReviveCountdownsView.swift in Sources */,
+				B1FB20FC2DCF2B1C004E78B8 /* BallView.swift in Sources */,
 				1A1A1A1A1A1A1A1A1A1A1A1C /* ContentView.swift in Sources */,
 				1A1A1A1A1A1A1A1A1A1A1A1E /* GameState.swift in Sources */,
 				1A1A1A1A1A1A1A1A1A1A1A20 /* GameView.swift in Sources */,
+				B1FB20C82DCF1BA5004E78B8 /* Paddle.swift in Sources */,
+				B1FB20C92DCF1BA5004E78B8 /* Ball.swift in Sources */,
+				B1FB20CA2DCF1BA5004E78B8 /* Block.swift in Sources */,
+				B1FB20CB2DCF1BA5004E78B8 /* Laser.swift in Sources */,
+				B1FB20CC2DCF1BA5004E78B8 /* GameHint.swift in Sources */,
+				B1FB20CD2DCF1BA5004E78B8 /* BallShape.swift in Sources */,
+				B1FB20CE2DCF1BA5004E78B8 /* DummySoundManager.swift in Sources */,
 				1A1A1A1A1A1A1A1A1A1A1A1A /* BreakoutApp.swift in Sources */,
 				B15C26262DCDAE7D00E731C9 /* SoundManager.swift in Sources */,
 			);

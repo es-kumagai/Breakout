@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 // メインのボール形状ビュー
 struct BallShapeView: View {

@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 // 残像形状ビュー
 struct TrailShapeView: View {

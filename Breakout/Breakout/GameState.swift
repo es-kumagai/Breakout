@@ -392,6 +392,22 @@ class GameState: ObservableObject {
                 // パドルの上に位置を合わせる（Y座標も念のため再設定）
                 balls[i].position.y = paddle.position.y - paddle.size.height / 2 - balls[i].effectiveRadius
             }
+            // 復活アニメーション中のボールは、ターゲット位置をパドルの移動に合わせて調整
+            else if balls[i].isReviving {
+                // ターゲット位置が設定されている場合は移動
+                if balls[i].reviveTargetPosition != nil {
+                    balls[i].reviveTargetPosition!.x += deltaX
+                }
+                
+                // 復活進行度が低い場合（アニメーション開始直後）は、
+                // 実際のボール位置も少し移動させる（自然な動きにするため）
+                if balls[i].reviveProgress < 0.5 {
+                    let progressRatio = CGFloat(balls[i].reviveProgress) * 2.0 // 0～1.0に正規化
+                    // 進行度に応じて移動量を減少させる（進行度が高いほど移動量は少なく）
+                    let adjustedDeltaX = deltaX * (1.0 - progressRatio)
+                    balls[i].position.x += adjustedDeltaX
+                }
+            }
         }
     }
     
@@ -462,6 +478,9 @@ class GameState: ObservableObject {
                 revivedBallLaunchTimer = newTimer
             }
         }
+        
+        // ボール復活アニメーションの更新（ゲームの状態に関係なく常に実行）
+        updateRevivingBalls(deltaTime: deltaTime)
         
         // スターコンボエフェクトタイマーを更新
         if let timer = starComboEffectTimer {
@@ -573,6 +592,7 @@ class GameState: ObservableObject {
         guard !isPaused && !isGameFrozen else { return }
         
         // 落下したボールの復活カウントダウン更新（ゲーム開始状態に関わらず実行）
+        // 注: 復活アニメーションの後に実行する必要がある
         updateBallReviveCountdowns(deltaTime: deltaTime)
         
         // ゲームが開始されている場合のみボールを動かす
@@ -1099,8 +1119,8 @@ class GameState: ObservableObject {
             
             // 下部境界外に出たらボールを削除または失敗状態にする
             if balls[i].position.y - balls[i].effectiveRadius > GameState.frameHeight {
-                // 既にカウントダウン中のボールはスキップ
-                if balls[i].reviveCountdown != nil {
+                // 既にカウントダウン中またはアニメーション中のボールはスキップ
+                if balls[i].reviveCountdown != nil || balls[i].isReviving {
                     continue
                 }
                 
@@ -1134,13 +1154,16 @@ class GameState: ObservableObject {
                     // 新しいBallインスタンスを作成して置き換える（SwiftUIの更新を確実にするため）
                     var updatedBall = balls[i]
                     updatedBall.isMoving = false
-                    updatedBall.position.y = 2000 // 画面外に移動
+                    // 画面外のより目立たない位置に移動（下方向だけでなく、完全に見えなくする）
+                    updatedBall.position.y = GameState.frameHeight * 2 // 完全に画面外
+                    updatedBall.position.x = -100 // 左側の画面外
                     updatedBall.reviveCountdown = 30.0 // 30秒後に復活
                     
-                    // 残像履歴をクリア
+                    // 残像履歴を完全にクリア（メモリ節約）
                     updatedBall.positionHistory.removeAll(keepingCapacity: true)
                     
                     balls[i] = updatedBall
+                    
                 } else {
                     // 全てのボールが落ちた場合、ライフを減らしてメッセージを表示
                     lives -= 1
@@ -1628,27 +1651,52 @@ class GameState: ObservableObject {
                 // カウントダウンを減らす
                 let newCountdown = countdown - deltaTime
                 
-                // 新しいBallインスタンスを作成して置き換える（常に更新して確実にSwiftUIの再描画を促す）
-                var updatedBall = balls[i]
-                updatedBall.reviveCountdown = newCountdown
-                balls[i] = updatedBall
+                // 10秒ごとにログを出力
+                if Int(newCountdown) % 10 == 0 && abs(newCountdown - Double(Int(newCountdown))) < deltaTime {
+                    print("ボール \(i) 復活まであと\(Int(newCountdown))秒")
+                }
                 
-                // 表示数をカウント
-                visibleCountdowns += 1
-                                
-                // カウントダウンが0以下になったらボールを復活
-                if newCountdown <= 0 {
+                // 安全装置: カウントダウンが非常に小さい値になった場合や、
+                // 何らかの理由で0になりそこねた場合でも復活させる
+                let forcedReviveThreshold: Double = 0.1 // 0.1秒以下ならほぼ0とみなす
+                
+                // カウントダウンが0以下、または非常に小さい値になったらボールを復活
+                if newCountdown <= 0 || (newCountdown < forcedReviveThreshold && countdown > forcedReviveThreshold) {
                     print("ボール \(i) が復活します")
                     reviveBall(at: i)
                     
                     // 同時復活カウント（統計用に記録するが使用しない）
                     justRevivedBallsCount += 1
                     justRevivedBallIndices.append(i)
-                }
-                
-                // 最大表示数を超えた場合は処理のみ行い表示は制限
-                if visibleCountdowns > maxVisibleCountdowns {
-                    // この処理はUI表示に関する制限のため、実際のゲームロジックには影響しない
+                    
+                    // このボールは完全に処理済みなので次のボールへ
+                    continue
+                } else {
+                    // まだカウントダウン中の場合だけ更新
+                    // 新しいBallインスタンスを作成して置き換える（常に更新して確実にSwiftUIの再描画を促す）
+                    var updatedBall = balls[i]
+                    updatedBall.reviveCountdown = newCountdown
+                    
+                    // 安全装置: 30秒を超えるカウントダウンは強制的に1秒に設定
+                    // カウントダウンが正しく機能しない場合の保険
+                    if newCountdown > 31.0 {
+                        updatedBall.reviveCountdown = 1.0
+                    }
+                    
+                    // アニメーション中は安全のためカウントダウンを一時停止
+                    if updatedBall.isReviving {
+                        continue
+                    }
+                    
+                    balls[i] = updatedBall
+                    
+                    // 表示数をカウント
+                    visibleCountdowns += 1
+                    
+                    // 最大表示数を超えた場合は処理のみ行い表示は制限
+                    if visibleCountdowns > maxVisibleCountdowns {
+                        // この処理はUI表示に関する制限のため、実際のゲームロジックには影響しない
+                    }
                 }
             }
         }
@@ -1688,13 +1736,22 @@ class GameState: ObservableObject {
             reviveX = paddle.position.x
         }
         
-        // ボールを復活位置に配置
-        balls[index].position = CGPoint(
-            x: reviveX,
-            y: paddle.position.y - paddle.size.height / 2 - balls[index].effectiveRadius
-        )
+        // 復活アニメーション用の開始位置（現在位置から目標位置への滑らかな移動）
+        let startX = balls[index].position.x
+        let startY = balls[index].position.y
+        
+        // 目標位置
+        let targetY = paddle.position.y - paddle.size.height / 2 - balls[index].effectiveRadius
+        
+        // アニメーション用の情報を設定
+        balls[index].isReviving = true
+        balls[index].reviveStartPosition = CGPoint(x: startX, y: startY)
+        balls[index].reviveTargetPosition = CGPoint(x: reviveX, y: targetY)
+        balls[index].reviveProgress = 0.0 // 0.0から1.0までアニメーション
+        
+        // 基本的なプロパティをリセット
         balls[index].velocity = CGVector(dx: 0, dy: 0)
-        balls[index].isMoving = false // クリックするまで動かないように変更
+        balls[index].isMoving = false
         balls[index].reviveCountdown = nil // カウントダウンをリセット
         
         // 位置履歴をクリア
@@ -1704,6 +1761,86 @@ class GameState: ObservableObject {
         shouldAutoLaunchRevivedBalls = false
         
         print("ボール \(index) が復活し、クリック待機中です。待機中ボール数: \(waitingCount + 1)")
+    }
+    
+    // ボール復活アニメーションの更新（update関数内で呼び出す）
+    private func updateRevivingBalls(deltaTime: TimeInterval) {
+        for i in 0..<balls.count {
+            if balls[i].isReviving {
+                // アニメーション進行度を更新（0.0〜1.0）
+                balls[i].reviveProgress += Float(deltaTime) * 2.0 // 0.5秒で完了
+                
+                // 必要なプロパティが存在することを確認
+                guard let startPos = balls[i].reviveStartPosition else {
+                    // 必要なプロパティがない場合、安全に復活処理を完了
+                    balls[i].isReviving = false
+                    balls[i].position = CGPoint(x: paddle.position.x, y: paddle.position.y - paddle.size.height / 2 - balls[i].effectiveRadius)
+                    balls[i].reviveStartPosition = nil
+                    balls[i].reviveTargetPosition = nil
+                    balls[i].reviveProgress = 0.0
+                    balls[i].reviveCountdown = nil // 念のためnilに設定
+                    continue
+                }
+                
+                // パドルの現在位置に基づいてターゲット位置を更新
+                // 待機中のボールの数に応じて位置を調整
+                let waitingBalls = balls.filter { !$0.isMoving && $0.reviveCountdown == nil && !$0.isReviving }
+                let waitingCount = waitingBalls.count
+                
+                // ターゲットX座標を計算
+                var targetX: CGFloat
+                
+                switch waitingCount {
+                case 0:
+                    // 待機中のボールがない場合は中央に配置
+                    targetX = paddle.position.x
+                case 1:
+                    // 既に1つ待機中の場合は左側に配置（パドル幅の1/4左）
+                    targetX = paddle.position.x - paddle.size.width / 4
+                case 2, 3:
+                    // 既に2つ以上待機中の場合は右側に配置（パドル幅の1/4右）
+                    targetX = paddle.position.x + paddle.size.width / 4
+                default:
+                    // その他の場合は中央に配置
+                    targetX = paddle.position.x
+                }
+                
+                // ターゲットY座標（パドルの上端）
+                let targetY = paddle.position.y - paddle.size.height / 2 - balls[i].effectiveRadius
+                
+                // 更新されたターゲット位置
+                let targetPos = CGPoint(x: targetX, y: targetY)
+                balls[i].reviveTargetPosition = targetPos
+                
+                if balls[i].reviveProgress >= 1.0 {
+                    // アニメーション完了
+                    balls[i].isReviving = false
+                    balls[i].position = targetPos // 更新されたターゲット位置を使用
+                    balls[i].reviveStartPosition = nil
+                    balls[i].reviveTargetPosition = nil
+                    balls[i].reviveProgress = 0.0
+                    balls[i].reviveCountdown = nil // 念のためnilに設定
+                } else {
+                    // 補間で現在位置を計算（イージング関数を使用）
+                    let progress = easeOutCubic(Float(balls[i].reviveProgress))
+                    
+                    // 現在位置を補間
+                    balls[i].position.x = startPos.x + (targetPos.x - startPos.x) * CGFloat(progress)
+                    balls[i].position.y = startPos.y + (targetPos.y - startPos.y) * CGFloat(progress)
+                    
+                    // アニメーション中のボールは画面外に出ないよう保護
+                    if balls[i].position.y > GameState.frameHeight {
+                        // Y位置が画面外の場合、直接目標位置に移動
+                        balls[i].position.y = min(balls[i].position.y, GameState.frameHeight * 0.9)
+                    }
+                }
+            }
+        }
+    }
+    
+    // イージング関数（滑らかな動きに）
+    private func easeOutCubic(_ x: Float) -> Float {
+        return 1 - pow(1 - x, 3)
     }
     
     // 特定のボールを発射するメソッドを追加

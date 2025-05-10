@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 struct Ball {
     var position: CGPoint = CGPoint(x: GameState.frameWidth / 2, y: GameState.frameHeight / 2)
@@ -13,9 +14,17 @@ struct Ball {
     var positionHistory: [CGPoint] = [] // 過去の位置履歴
     var maxHistoryLength: Int = 5 // 履歴の最大保存数
     var reviveCountdown: Double? = nil // 復活までのカウントダウン（秒）
+    
+    // 復活アニメーション用のプロパティ
+    var isReviving: Bool = false // 復活アニメーション中かどうか
+    var reviveStartPosition: CGPoint? = nil // 復活アニメーションの開始位置
+    var reviveTargetPosition: CGPoint? = nil // 復活アニメーションの目標位置
+    var reviveProgress: Float = 0.0 // 復活アニメーションの進行度（0.0〜1.0）
+    
     // スターコンボ関連のプロパティ（星型ボール専用）
     var comboCount: Int = 0 // 現在のコンボカウント
     var lastHitBlockColor: Color? = nil // 最後に衝突したブロックの色
+    
     // 成長を考慮した実際の半径を返す
     var effectiveRadius: CGFloat {
         return radius + (shape == .circle ? growthFactor : 0)

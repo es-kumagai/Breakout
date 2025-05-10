@@ -1,3 +1,5 @@
+import Foundation
+
 // ボールの形状を表す列挙型
 enum BallShape {
     case star

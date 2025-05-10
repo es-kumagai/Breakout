@@ -96,7 +96,7 @@ class GameState: ObservableObject {
     private var shouldAutoLaunchRevivedBalls: Bool = false // 復活ボールの自動発射フラグ
     
     // 待機中ボールの時間差発射用プロパティ
-    private var waitingBallLaunchInterval: Double = 0.3 // 待機中ボール発射間隔（秒）
+    private var waitingBallLaunchInterval: Double = 0.2 // 待機中ボール発射間隔（秒）
     
     // メモリ効率化のためにSet型を使用
     private var cancellables = Set<AnyCancellable>()
@@ -868,17 +868,38 @@ class GameState: ObservableObject {
             return (1.0, CGFloat.random(in: -0.05...0.05)) // 0.0→±0.05
             
         case .oval:
-            // 楕円形：回転角度によって反発係数が大きく変化
-            // 楕円の長軸方向の反発は非常に弱く、短軸方向の反発は非常に強い
-            let longAxisAligned = normalizedRotation.truncatingRemainder(dividingBy: .pi) < .pi / 2
+            // 楕円形：現在の回転角度と衝突方向から反発係数を計算
+            // 長軸と短軸の比率（楕円の偏平率に関連）
+            let eccentricity: CGFloat = 0.7 // 値が小さいほど細長い楕円
             
-            if longAxisAligned {
-                // 長軸方向での衝突：かなり弱い反発
-                return (0.7, CGFloat.random(in: -0.1...0.1)) // 0.9→0.7, ±0.05→±0.1
-            } else {
-                // 短軸方向での衝突：かなり強い反発
-                return (1.4, CGFloat.random(in: -0.3...0.3)) // 1.15→1.4, ±0.1→±0.3
-            }
+            // 長軸の方向ベクトル（楕円の回転角度から計算）
+            let longAxisX = cos(normalizedRotation)
+            let longAxisY = sin(normalizedRotation)
+            
+            // 短軸の方向ベクトル（長軸に直交）
+            let shortAxisX = -longAxisY
+            let shortAxisY = longAxisX
+            
+            // 衝突方向を推定（実際の衝突方向は使用できないため近似値）
+            // 速度ベクトルの反対方向を衝突方向と仮定
+            let velocityMagnitude = sqrt(CGFloat(ball.velocity.dx * ball.velocity.dx + ball.velocity.dy * ball.velocity.dy))
+            let normalX = velocityMagnitude > 0 ? -ball.velocity.dx / velocityMagnitude : 0
+            let normalY = velocityMagnitude > 0 ? -ball.velocity.dy / velocityMagnitude : -1
+            
+            // 長軸と法線ベクトルの内積（0に近いほど長軸と衝突面が平行）
+            let longAxisDot = abs(CGFloat(longAxisX * normalX + longAxisY * normalY))
+            
+            // 短軸と法線ベクトルの内積（0に近いほど短軸と衝突面が平行）
+            let shortAxisDot = abs(CGFloat(shortAxisX * normalX + shortAxisY * normalY))
+            
+            // 反発係数を計算（長軸と衝突面が平行なら弱く、短軸と平行なら強く）
+            let reflectionCoef = 0.5 + (shortAxisDot * 1.8) // 0.5〜2.3の範囲
+            
+            // ランダム角度の計算（短軸方向の衝突ほど大きなランダム性）
+            let randomAngleRange = 0.1 + shortAxisDot * 0.6 // 0.1〜0.7の範囲
+            let randomAngle = CGFloat.random(in: -randomAngleRange...randomAngleRange)
+            
+            return (reflectionCoef, randomAngle)
         }
     }
     
@@ -979,35 +1000,92 @@ class GameState: ObservableObject {
                 // パドルの中心からの距離に基づいて反射角度を計算
                 let hitPosition = (balls[i].position.x - paddle.position.x) / (paddle.size.width / 2)
                 
-                // ボールの形状に基づいて角度の補正係数を決定
-                let angleModifier: CGFloat
-                switch balls[i].shape {
-                case .star:
-                    // 星型は鋭く反射（よりランダム性と鋭さを持つ）
-                    angleModifier = 1.2
+                // 楕円形ボールの場合、形状を考慮した反射を行う
+                if balls[i].shape == .oval {
+                    // 楕円の回転角度を取得
+                    let rotationRadians = balls[i].rotation.degrees * .pi / 180
                     
-                    // スターコンボ連続カウントをリセット
-                    starComboChainCount = 0
+                    // 楕円の長軸と短軸の方向ベクトルを計算
+                    let longAxisX = cos(rotationRadians)
+                    let longAxisY = sin(rotationRadians)
+                    let shortAxisX = -longAxisY 
+                    let shortAxisY = longAxisX
                     
-                    // 個別のボールのcomboCountもリセット
-                    balls[i].comboCount = 0
-                    balls[i].lastHitBlockColor = nil
-                    print("星型ボールがパドルに当たったため、コンボカウントとチェインカウントをリセットしました")
+                    // パドルの法線ベクトル（上向き）
+                    let paddleNormalX: CGFloat = 0.0
+                    let paddleNormalY: CGFloat = -1.0
                     
-                case .circle:
-                    // 円形は通常の反射
-                    angleModifier = 1.0
-                case .oval:
-                    // 楕円形は角度が少し滑らかに変化
-                    angleModifier = 0.85
+                    // 長軸と法線ベクトルの内積（0〜1の範囲）
+                    let longAxisDot = abs(CGFloat(longAxisX * paddleNormalX + longAxisY * paddleNormalY))
+                    
+                    // 短軸と法線ベクトルの内積（0〜1の範囲）
+                    let shortAxisDot = abs(CGFloat(shortAxisX * paddleNormalX + shortAxisY * paddleNormalY))
+                    
+                    // 基本角度を計算（パドルの位置に基づく）- hitPositionは-1.0〜1.0の範囲
+                    let baseAngle = hitPosition * .pi / 3 // -60度〜60度
+                    
+                    // 楕円の形状に基づく角度の補正
+                    let angleModifier = 0.85 - longAxisDot * 0.3 // 短軸が上向きなら強く、長軸が上向きなら弱く
+                    
+                    // 最終角度を計算
+                    let angle = baseAngle * angleModifier
+                    
+                    // 楕円の形状に基づく速度の補正
+                    let speedModifier = 1.0 + shortAxisDot * 0.3 // 短軸が上向きほど速く
+                    
+                    // 速度の大きさ
+                    let speed = baseVelocity * speedModifier
+                    
+                    // 反射ベクトルの計算
+                    balls[i].velocity.dx = speed * sin(angle)
+                    balls[i].velocity.dy = -speed * cos(angle)
+                    
+                    // 形状による偏向を追加
+                    let deflectionAngle = (longAxisDot - 0.5) * .pi / 4 // -π/8〜π/8の範囲
+                    let currentAngle = atan2(balls[i].velocity.dy, balls[i].velocity.dx)
+                    let newAngle = currentAngle + deflectionAngle
+                    
+                    // 最終速度を設定
+                    let finalSpeed = sqrt(CGFloat(balls[i].velocity.dx * balls[i].velocity.dx + balls[i].velocity.dy * balls[i].velocity.dy))
+                    balls[i].velocity.dx = finalSpeed * cos(newAngle)
+                    balls[i].velocity.dy = finalSpeed * sin(newAngle)
+                    
+                    // ランダム要素（少量）
+                    let randomFactor = 0.05 + shortAxisDot * 0.1 // 0.05〜0.15の範囲
+                    let randomAngle = CGFloat.random(in: -randomFactor...randomFactor)
+                    applyRandomAngleChange(to: &balls[i], angle: randomAngle)
+                } else {
+                    // 他の形状のボールは従来の計算方法を使用
+                    // ボールの形状に基づいて角度の補正係数を決定
+                    let angleModifier: CGFloat
+                    switch balls[i].shape {
+                    case .star:
+                        // 星型は鋭く反射（よりランダム性と鋭さを持つ）
+                        angleModifier = 1.2
+                        
+                        // スターコンボ連続カウントをリセット
+                        starComboChainCount = 0
+                        
+                        // 個別のボールのcomboCountもリセット
+                        balls[i].comboCount = 0
+                        balls[i].lastHitBlockColor = nil
+                        print("星型ボールがパドルに当たったため、コンボカウントとチェインカウントをリセットしました")
+                        
+                    case .circle:
+                        // 円形は通常の反射
+                        angleModifier = 1.0
+                    case .oval:
+                        // 楕円形は上の特殊処理で対応済み（この分岐には入らない）
+                        angleModifier = 0.85
+                    }
+                    
+                    let angle = hitPosition * .pi / 3 * angleModifier // 形状に応じて角度を調整
+                    
+                    // 速度の大きさを保持
+                    let speed = baseVelocity
+                    balls[i].velocity.dx = speed * sin(angle)
+                    balls[i].velocity.dy = -speed * cos(angle)
                 }
-                
-                let angle = hitPosition * .pi / 3 * angleModifier // 形状に応じて角度を調整
-                
-                // 速度の大きさを保持
-                let speed = baseVelocity
-                balls[i].velocity.dx = speed * sin(angle)
-                balls[i].velocity.dy = -speed * cos(angle)
                 
                 // パドルにめり込まないように位置を調整
                 balls[i].position.y = paddle.position.y - paddle.size.height / 2 - balls[i].effectiveRadius
@@ -1119,7 +1197,7 @@ class GameState: ObservableObject {
                 
                 // ランダム要素を追加して予測不可能に（より大きく）
                 let randomAngle = CGFloat.random(in: -0.35...0.35) // -0.2...0.2→-0.35...0.35
-                let currentSpeed = sqrt(newVelocity.dx * newVelocity.dx + newVelocity.dy * newVelocity.dy)
+                let currentSpeed = sqrt(CGFloat(newVelocity.dx * newVelocity.dx + newVelocity.dy * newVelocity.dy))
                 let angle = atan2(newVelocity.dy, newVelocity.dx) + randomAngle
                 newVelocity.dx = currentSpeed * cos(angle)
                 newVelocity.dy = currentSpeed * sin(angle)
@@ -1128,7 +1206,7 @@ class GameState: ObservableObject {
                 
                 // ランダム要素を追加（より大きく）
                 let randomAngle = CGFloat.random(in: -0.35...0.35) // -0.2...0.2→-0.35...0.35
-                let currentSpeed = sqrt(newVelocity.dx * newVelocity.dx + newVelocity.dy * newVelocity.dy)
+                let currentSpeed = sqrt(CGFloat(newVelocity.dx * newVelocity.dx + newVelocity.dy * newVelocity.dy))
                 let angle = atan2(newVelocity.dy, newVelocity.dx) + randomAngle
                 newVelocity.dx = currentSpeed * cos(angle)
                 newVelocity.dy = currentSpeed * sin(angle)
@@ -1147,51 +1225,75 @@ class GameState: ObservableObject {
             }
             
         case .oval:
-            // 楕円形：横方向と縦方向で反射特性の差を拡大
-            let vx = ball.velocity.dx
-            let vy = ball.velocity.dy
-            let speed = sqrt(vx * vx + vy * vy)
+            // 楕円形：現在の回転角度と衝突方向に基づく物理的に正確な反射
+            
+            // 楕円の現在の回転角度を取得
             let rotationRadians = ball.rotation.degrees * .pi / 180
             
-            // 楕円の現在の向き（長軸の方向）を考慮して反射特性を決定
-            let isLongAxisHorizontal = rotationRadians.truncatingRemainder(dividingBy: .pi) < .pi / 2
+            // 楕円の長軸と短軸の方向ベクトルを計算
+            let longAxisX = cos(rotationRadians)
+            let longAxisY = sin(rotationRadians)
+            let shortAxisX = -longAxisY
+            let shortAxisY = longAxisX
+            
+            // 衝突面の法線ベクトル（壁やパドルの場合）
+            let normalX: CGFloat = isHorizontal ? 1.0 : 0.0
+            let normalY: CGFloat = isHorizontal ? 0.0 : 1.0
+            
+            // 長軸と法線ベクトルの内積（0〜1の範囲）
+            let longAxisDot = abs(CGFloat(longAxisX * normalX + longAxisY * normalY))
+            
+            // 短軸と法線ベクトルの内積（0〜1の範囲）
+            let shortAxisDot = abs(CGFloat(shortAxisX * normalX + shortAxisY * normalY))
+            
+            // 入射速度ベクトル
+            let vx = ball.velocity.dx
+            let vy = ball.velocity.dy
+            let speed = sqrt(CGFloat(vx * vx + vy * vy))
+            
+            // 反射係数を計算（長軸方向が衝突面に平行なほど弱く、短軸方向が平行なほど強く）
+            let reflectionCoef = isHorizontal ? 
+                0.5 + shortAxisDot * 1.8 : // 0.5〜2.3の範囲
+                0.5 + shortAxisDot * 1.8   // 0.5〜2.3の範囲
+            
+            // 偏向角度を計算（楕円の形状から生じる非対称性を表現）
+            let deflectionAngle = (longAxisDot - 0.5) * .pi / 3 // -π/6〜π/6の範囲
             
             if isHorizontal {
-                // 水平方向の衝突
-                if isLongAxisHorizontal {
-                    // 長軸が水平方向：非常に弱い反発
-                    newVelocity.dx *= -0.7 // -0.9→-0.7
-                    // 大きな角度変化を追加
-                    let angleFactor = CGFloat.random(in: 0.7...1.3) // 0.9...1.1→0.7...1.3
-                    newVelocity.dy *= angleFactor
-                } else {
-                    // 短軸が水平方向：非常に強い反発
-                    newVelocity.dx *= -1.3 // -0.9→-1.3
-                    // 小さな角度変化
-                    let angleFactor = CGFloat.random(in: 0.9...1.1)
-                    newVelocity.dy *= angleFactor
-                }
+                // 水平壁での反射
+                newVelocity.dx *= -reflectionCoef
+                
+                // 反射後の角度を計算
+                let currentAngle = atan2(newVelocity.dy, newVelocity.dx)
+                let newAngle = currentAngle + deflectionAngle
+                
+                // 角度変化を適用
+                let newSpeed = sqrt(CGFloat(newVelocity.dx * newVelocity.dx + newVelocity.dy * newVelocity.dy))
+                newVelocity.dx = newSpeed * cos(newAngle)
+                newVelocity.dy = newSpeed * sin(newAngle)
             } else {
-                // 垂直方向の衝突
-                if !isLongAxisHorizontal {
-                    // 長軸が垂直方向：非常に弱い反発
-                    newVelocity.dy *= -0.7 // -0.9→-0.7
-                    // 大きな角度変化を追加
-                    let angleFactor = CGFloat.random(in: 0.7...1.3) // 0.9...1.1→0.7...1.3
-                    newVelocity.dx *= angleFactor
-                } else {
-                    // 短軸が垂直方向：非常に強い反発
-                    newVelocity.dy *= -1.3 // -0.9→-1.3
-                    // 小さな角度変化
-                    let angleFactor = CGFloat.random(in: 0.9...1.1)
-                    newVelocity.dx *= angleFactor
-                }
+                // 垂直壁での反射
+                newVelocity.dy *= -reflectionCoef
+                
+                // 反射後の角度を計算
+                let currentAngle = atan2(newVelocity.dy, newVelocity.dx)
+                let newAngle = currentAngle + deflectionAngle
+                
+                // 角度変化を適用
+                let newSpeed = sqrt(CGFloat(newVelocity.dx * newVelocity.dx + newVelocity.dy * newVelocity.dy))
+                newVelocity.dx = newSpeed * cos(newAngle)
+                newVelocity.dy = newSpeed * sin(newAngle)
             }
             
-            // 速度を正規化して一定に保つ
-            let newSpeed = sqrt(newVelocity.dx * newVelocity.dx + newVelocity.dy * newVelocity.dy)
-            newVelocity.dx = newVelocity.dx * speed / newSpeed
-            newVelocity.dy = newVelocity.dy * speed / newSpeed
+            // ランダム要素（実際の物理ではなく予測不可能性を追加するため）
+            let randomFactor = 0.1 + shortAxisDot * 0.2 // 0.1〜0.3の範囲
+            let randomAngle = CGFloat.random(in: -randomFactor...randomFactor)
+            let finalAngle = atan2(newVelocity.dy, newVelocity.dx) + randomAngle
+            
+            // 最終速度を設定（速度の大きさは保持）
+            let finalSpeed = speed * (0.9 + shortAxisDot * 0.2) // 速度も形状に応じて変化（0.9〜1.1倍）
+            newVelocity.dx = finalSpeed * cos(Double(finalAngle))
+            newVelocity.dy = finalSpeed * sin(Double(finalAngle))
         }
         
         balls[ballIndex].velocity = newVelocity

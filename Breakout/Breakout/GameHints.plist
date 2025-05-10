@@ -124,12 +124,6 @@
     </dict>
     <dict>
         <key>キャプション</key>
-        <string>パドルの中央で受けると安定！</string>
-        <key>内容</key>
-        <string>パドルの中央でボールを受けると、まっすぐ跳ね返すことができるぞ。</string>
-    </dict>
-    <dict>
-        <key>キャプション</key>
         <string>レーザーの色にも注目！</string>
         <key>内容</key>
         <string>レーザーの色は壊したブロックの色と連動している。視覚的にも楽しもう。</string>
@@ -157,6 +151,54 @@
         <string>初心者はまず1面クリアを目指そう</string>
         <key>内容</key>
         <string>まずは落ち着いて1面クリアを目指すのが上達の近道だ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>パドル上のボールも必ず発射せよ！</string>
+        <key>内容</key>
+        <string>パドル上にボールが残っていても、他のボールが全て落ちると負けになるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>パドル上のボールでレーザー防御！</string>
+        <key>内容</key>
+        <string>パドル上に残したボールを使えば、落ちてくるレーザーを防げるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>ボール同士の反射を活用せよ！</string>
+        <key>内容</key>
+        <string>パドル上のボールに他のボールを当てると、より速く跳ね返るぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>ブロックの隙間を狙え！</string>
+        <key>内容</key>
+        <string>ブロックの間に上手くボールを通せば、一度に複数のブロックを破壊できるぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>窮地のパドルワープ技！</string>
+        <key>内容</key>
+        <string>レーザーだらけの時は、画面外でカーソルを移動して戻すとパドルがワープするぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>ボールでレーザー撃破！</string>
+        <key>内容</key>
+        <string>ボールをレーザーに当てれば消せるから、上手く狙って危険を回避しよう。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>パドルを短くしてレーザを回避！</string>
+        <key>内容</key>
+        <string>楕円ボールでブロックを破壊するほど、パドルが短くなっていくぞ。</string>
+    </dict>
+    <dict>
+        <key>キャプション</key>
+        <string>楕円ボールロスに注意！</string>
+        <key>内容</key>
+        <string>楕円ボールが画面外に落ちるとパドルが元の長さに戻るから注意だ。</string>
     </dict>
 </array>
 </plist> 

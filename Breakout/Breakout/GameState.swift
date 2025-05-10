@@ -129,6 +129,7 @@ class GameState: ObservableObject {
     // ゲームの攻略ヒント関連のプロパティ
     @Published var currentHint: GameHint? = nil
     private var gameHints: [GameHint] = []
+    private var lastHint: GameHint? = nil
     
     init() {
         paddle = Paddle()
@@ -2171,8 +2172,8 @@ class GameState: ObservableObject {
             gameHints = hints
             print("攻略ヒントを\(hints.count)件読み込みました")
             
-            guard hints.count > 0 else {
-                fatalError("攻略ヒントは１つ以上必要です。")
+            guard hints.count > 1 else {
+                fatalError("攻略ヒントは２つ以上必要です。")
             }
             
             guard !hints.contains(where: \.isIllformed) else {
@@ -2185,7 +2186,12 @@ class GameState: ObservableObject {
     
     // ランダムなヒントを取得する
     private func getRandomHint() -> GameHint {
-        gameHints.randomElement()!
+        var newHint: GameHint
+        repeat {
+            newHint = gameHints.randomElement()!
+        } while newHint == lastHint
+        lastHint = newHint
+        return newHint
     }
 }
 

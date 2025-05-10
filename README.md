@@ -2,7 +2,7 @@
 
 macOS向けのブロック崩しゲームの実装です。
 
-[!Breakout](Breakout.png)
+![Breakout](Breakout.png)
 
 ## 仕様
 

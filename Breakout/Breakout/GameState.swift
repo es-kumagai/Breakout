@@ -1377,9 +1377,14 @@ class GameState: ObservableObject {
                 // 残像を更新
                 updateTrailHistory(for: &balls[ballIndex], oldPosition: oldPosition)
                 
-                // 円形ボールの場合、直径を1px大きくする
+                // 円形ボールの場合、直径を1px大きくする（最大直径400pxまで）
                 if balls[ballIndex].shape == .circle {
-                    balls[ballIndex].growthFactor += 0.5 // 半径を0.5px増やす（直径で1px増加）
+                    // 現在の半径と成長係数から実際のサイズを計算
+                    let currentRadius = balls[ballIndex].radius + balls[ballIndex].growthFactor
+                    // 最大半径（最大直径の半分）を超えなければ成長係数を増やす
+                    if currentRadius < balls[ballIndex].maxDiameter / 2 {
+                        balls[ballIndex].growthFactor += 0.5 // 半径を0.5px増やす（直径で1px増加）
+                    }
                 }
                 
                 // 楕円形ボールの場合、パドルの幅を1px小さくする
@@ -1711,7 +1716,17 @@ class GameState: ObservableObject {
         
         // 円形ボールの場合は成長係数をリセット
         if shape == .circle {
-            balls[index].growthFactor = 0
+            // もし現在のサイズが最大サイズに近い場合は、最大の80%までリセット
+            let maxRadius = balls[index].maxDiameter / 2
+            let currentRadius = balls[index].radius + balls[index].growthFactor
+            
+            if currentRadius >= maxRadius * 0.9 {
+                // 最大サイズの80%にまでリセット
+                balls[index].growthFactor = (maxRadius * 0.8) - balls[index].radius
+            } else {
+                // そうでなければ完全にリセット
+                balls[index].growthFactor = 0
+            }
         }
         
         // パドル上で待機中のボールをカウント（移動していなくてカウントダウンもないボール）

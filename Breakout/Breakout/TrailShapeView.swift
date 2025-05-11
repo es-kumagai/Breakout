@@ -15,13 +15,13 @@ struct TrailShapeView: View {
 		Group {
 			switch ball.shape {
 			case .circle:
-				// 丸型ボールの残像（成長係数を適用）
+				// 丸型ボールの残像（effectiveRadiusを使用して最大サイズを制限）
 				Circle()
 					.fill(trailColor)
 					.frame(
-						width: (ball.radius + ball.growthFactor) * 2,
-						height: (ball.radius + ball.growthFactor) * 2
-					)  // 成長したサイズ
+						width: ball.effectiveRadius * 2,
+						height: ball.effectiveRadius * 2
+					)
 					.rotationEffect(trailRotation)
 					.position(position)
 					.opacity(opacity)

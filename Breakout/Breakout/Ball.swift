@@ -25,8 +25,16 @@ struct Ball {
     var comboCount: Int = 0 // 現在のコンボカウント
     var lastHitBlockColor: Color? = nil // 最後に衝突したブロックの色
     
+    // 円形ボールの最大直径（ピクセル）
+    let maxDiameter: CGFloat = 400
+    
     // 成長を考慮した実際の半径を返す
     var effectiveRadius: CGFloat {
-        return radius + (shape == .circle ? growthFactor : 0)
+        if shape == .circle {
+            // 最大半径（最大直径の半分）を超えないようにする
+            return min(radius + growthFactor, maxDiameter / 2)
+        } else {
+            return radius
+        }
     }
 } 

@@ -9,12 +9,12 @@ struct BallShapeView: View {
 		Group {
 			switch ball.shape {
 			case .circle:
-				// 丸型ボール（成長係数を適用）
+				// 丸型ボール（effectiveRadiusを使用して最大サイズを制限）
 				Circle()
 					.foregroundColor(ball.color)
 					.frame(
-						width: (ball.radius + ball.growthFactor) * 2,
-						height: (ball.radius + ball.growthFactor) * 2
+						width: ball.effectiveRadius * 2,
+						height: ball.effectiveRadius * 2
 					)
 					.rotationEffect(ball.rotation)
 					.position(ball.position)

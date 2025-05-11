@@ -33,7 +33,7 @@ class GameState: ObservableObject {
     // 高性能レンダリング用のバッチ処理
     private var pendingComboTargets: [[UUID]] = [] // 複数バッチのブロックIDを管理
     private var currentBatchIndex: Int = 0 // 現在処理中のバッチインデックス
-    private let maxVisibleBatchSize: Int = 5 // 一度に視覚的に表示するブロック数の上限（8→5に減少）
+    private let maxVisibleBatchSize: Int = 150 // 一度に視覚的に表示するブロック数の上限
     private let batchProcessingInterval: Double = 0.3 // バッチ処理の間隔（秒）
     
     // ゲーム要素 - @Publishedを必要なものだけに限定
